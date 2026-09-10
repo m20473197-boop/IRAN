@@ -6,7 +6,10 @@ import pytest
 
 from app.game.housing import pricing
 from app.game.housing.catalog import CITY_BASE_PRICE_PER_SQM
+from app.game.housing.construction_year import current_iranian_year
 from app.game.housing.pricing import HousePricingInput
+
+_BASE_YEAR = current_iranian_year()
 
 
 def make_input(**overrides) -> HousePricingInput:
@@ -19,7 +22,7 @@ def make_input(**overrides) -> HousePricingInput:
         living_rooms=1,
         bathrooms=1,
         kitchen_type="معمولی",
-        building_age_years=5,
+        construction_year=_BASE_YEAR - 5,
         parking=True,
         elevator=True,
         storage=True,
@@ -69,20 +72,29 @@ def test_price_scales_with_area():
     assert per_sqm_large < per_sqm_small
 
 
-def test_age_depreciates_price_with_floor():
-    new = pricing.estimate_house_price(make_input(building_age_years=0))
-    mid = pricing.estimate_house_price(make_input(building_age_years=15))
-    old = pricing.estimate_house_price(make_input(building_age_years=30))
+def test_construction_year_depreciates_price_with_floor():
+    this_year = current_iranian_year()
+    new = pricing.estimate_house_price(make_input(construction_year=this_year))
+    mid = pricing.estimate_house_price(make_input(construction_year=this_year - 15))
+    old = pricing.estimate_house_price(make_input(construction_year=this_year - 30))
     # The 45% floor is reached at ~46 years and stops further depreciation.
-    floored = pricing.estimate_house_price(make_input(building_age_years=50))
-    ancient = pricing.estimate_house_price(make_input(building_age_years=200))
+    floored = pricing.estimate_house_price(make_input(construction_year=this_year - 50))
+    # 1330 is the oldest accepted year (~75 years old) — still on the floor.
+    ancient = pricing.estimate_house_price(make_input(construction_year=1330))
     assert new > mid > old > floored
     assert floored == ancient  # the floor keeps very old houses sellable
 
 
-def test_negative_age_is_rejected():
+def test_future_construction_year_is_rejected():
     with pytest.raises(ValueError):
-        pricing.estimate_house_price(make_input(building_age_years=-1))
+        pricing.estimate_house_price(
+            make_input(construction_year=current_iranian_year() + 1)
+        )
+
+
+def test_too_old_construction_year_is_rejected():
+    with pytest.raises(ValueError):
+        pricing.estimate_house_price(make_input(construction_year=1300))
 
 
 def test_facilities_increase_price():

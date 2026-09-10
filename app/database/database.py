@@ -7,6 +7,7 @@ The connection URL drives everything: the default is SQLite (via
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import (
@@ -19,6 +20,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import models as _models  # noqa: F401  (registers all ORM models)
 from app.database.models.base import Base
+from app.game.housing.construction_year import current_iranian_year
+
+logger = logging.getLogger(__name__)
 
 _SQLITE_PREFIX = "sqlite"
 _MEMORY_MARKER = ":memory:"
@@ -34,6 +38,19 @@ _SQLITE_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("employer", "VARCHAR(64) NOT NULL DEFAULT ''"),
     ],
 }
+
+# Column renames for existing SQLite databases: (table, old_name, new_name).
+# Applied idempotently — only when the old column exists and the new one
+# does not.
+_SQLITE_COLUMN_RENAMES: tuple[tuple[str, str, str], ...] = (
+    # The construction-year update: stored building age → construction year.
+    ("houses", "building_age_years", "construction_year"),
+)
+
+# Construction years are Solar-Hijri (≥ 1330); anything below this threshold
+# in the renamed column is a stale *age* from the old system and must be
+# converted to a construction year exactly once.
+_CONSTRUCTION_YEAR_THRESHOLD: int = 1330
 
 
 class Database:
@@ -63,25 +80,67 @@ class Database:
         """Create any missing tables and apply additive column migrations.
 
         Existing tables and rows are never dropped or recreated, so player
-        data safely survives bot restarts.
+        data safely survives bot restarts. Column renames (e.g. the
+        construction-year update of ``houses``) run before the additive
+        backfills so the schema is consistent within one startup.
         """
         async with self._engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
         if self._database_url.startswith(_SQLITE_PREFIX):
+            await self._rename_columns()
             await self._add_missing_columns()
+            await self._convert_building_ages_to_construction_years()
+
+    async def _rename_columns(self) -> None:
+        """Rename columns on existing SQLite tables (idempotent)."""
+        async with self._engine.begin() as connection:
+            for table_name, old_name, new_name in _SQLITE_COLUMN_RENAMES:
+                existing = await self._existing_columns(connection, table_name)
+                if not existing:
+                    continue  # Table does not exist yet — create_all handles it.
+                if old_name in existing and new_name not in existing:
+                    await connection.exec_driver_sql(
+                        f"ALTER TABLE {table_name} RENAME COLUMN {old_name} TO {new_name}"
+                    )
+                    logger.info(
+                        "Migrated %s: column %s renamed to %s",
+                        table_name,
+                        old_name,
+                        new_name,
+                    )
+
+    async def _convert_building_ages_to_construction_years(self) -> None:
+        """Convert stale stored ages into real construction years (once).
+
+        After the ``building_age_years`` → ``construction_year`` rename, the
+        renamed column still holds the old ages (0…~100). Real construction
+        years are Solar-Hijri (≥ 1330), so a single guarded UPDATE converts
+        every stale age exactly ``current_iranian_year() − age`` and stays
+        a no-op on databases that already hold proper years.
+        """
+        async with self._engine.begin() as connection:
+            existing = await self._existing_columns(connection, "houses")
+            if "construction_year" not in existing:
+                return
+            current_year = current_iranian_year()
+            result = await connection.exec_driver_sql(
+                f"UPDATE houses SET construction_year = {current_year} - construction_year "
+                f"WHERE construction_year < {_CONSTRUCTION_YEAR_THRESHOLD}"
+            )
+            converted = result.rowcount
+            if converted:
+                logger.info(
+                    "Migrated houses: %s stored building ages converted to "
+                    "construction years (base year %s)",
+                    converted,
+                    current_year,
+                )
 
     async def _add_missing_columns(self) -> None:
         """Backfill new columns on existing SQLite tables (idempotent)."""
         async with self._engine.begin() as connection:
             for table_name, columns in _SQLITE_COLUMN_MIGRATIONS.items():
-                existing = {
-                    row[1]
-                    for row in (
-                        await connection.exec_driver_sql(
-                            f"PRAGMA table_info({table_name})"
-                        )
-                    ).fetchall()
-                }
+                existing = await self._existing_columns(connection, table_name)
                 if not existing:
                     continue  # Table does not exist yet — create_all handles it.
                 for column_name, column_ddl in columns:
@@ -91,6 +150,16 @@ class Database:
                         f"ALTER TABLE {table_name} "
                         f"ADD COLUMN {column_name} {column_ddl}"
                     )
+
+    @staticmethod
+    async def _existing_columns(connection, table_name: str) -> set[str]:
+        """The column names of ``table_name`` (empty set if it doesn't exist)."""
+        return {
+            row[1]
+            for row in (
+                await connection.exec_driver_sql(f"PRAGMA table_info({table_name})")
+            ).fetchall()
+        }
 
     async def dispose(self) -> None:
         """Close all connections (called on shutdown)."""

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.bot.messages.formatters import fa_int, money
+from app.bot.messages.formatters import fa_int, fa_year, money
 from app.game.realestate.dto import (
     ConstructionCancelResult,
     ConstructionProjectData,
@@ -365,7 +365,7 @@ def renovation_options_text(house, value: int) -> str:
         f"🏠 #{fa_int(house.id)} {house.city}، {house.neighborhood} — "
         f"{fa_int(house.area_sqm)} متری\n"
         f"⭐ کیفیت: {house.quality} — 🍽️ آشپزخانه: {house.kitchen_type} — "
-        f"🏗️ عمر: {fa_int(house.building_age_years)} سال\n"
+        f"📅 سال ساخت: {fa_year(house.construction_year)}\n"
         f"🚗 پارکینگ: {_YES if house.parking else _NO} — "
         f"🛗 آسانسور: {_YES if house.elevator else _NO} — "
         f"📦 انباری: {_YES if house.storage else _NO}\n"

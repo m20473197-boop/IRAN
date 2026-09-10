@@ -85,7 +85,7 @@ def test_market_list_has_info_and_buy_buttons_per_house():
         living_rooms=1,
         bathrooms=1,
         kitchen_type="مدرن",
-        building_age_years=5,
+        construction_year=1395,
         parking=True,
         elevator=True,
         storage=False,

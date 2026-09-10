@@ -213,8 +213,11 @@ dynamically** — nothing is ever a fixed number — and the whole market is
 
 Every house has a unique ID plus a full property list: city, neighborhood,
 area (m²), bedrooms, living rooms, bathrooms, kitchen type (مدرن/معمولی/قدیمی),
-building age, parking, elevator, storage and a quality level
-(عالی/خوب/متوسط/ضعیف).
+construction year (سال ساخت, Solar Hijri — e.g. ۱۳۹۵), parking, elevator,
+storage and a quality level (عالی/خوب/متوسط/ضعیف). The building's age is
+never stored — it is derived internally as
+``current_iranian_year() − construction_year`` wherever needed, while the UI
+only ever shows the construction year.
 
 ### Dynamic pricing
 
@@ -223,7 +226,7 @@ every time it is shown:
 
 ```
 price = base_price_per_sqm(city) × neighborhood_multiplier × area
-      × size_factor × age_depreciation(floor 45%) × facility_bonus
+      × size_factor × construction-year depreciation (floor 45%) × facility_bonus
       × kitchen_factor × quality_factor × market_factor × per-house jitter
 ```
 
@@ -303,7 +306,8 @@ house price. Cancelling an active project refunds 70%. Completion grants XP.
 
 Each owned, tenant-free house offers live-quoted options — raise quality,
 renovate the kitchen, add a bathroom, add a room, add parking/elevator/
-storage, or modernize an old building (shaves years off). Every option costs
+storage, or modernize an old building (advances the construction year).
+Every option costs
 money and takes days; on completion the house attributes change and the
 dynamic pricing engine immediately values it higher (recorded as
 value_before → value_after in the `property_upgrades` audit table).

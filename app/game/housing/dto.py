@@ -22,7 +22,7 @@ class HouseData:
     living_rooms: int
     bathrooms: int
     kitchen_type: str
-    building_age_years: int
+    construction_year: int          # سال ساخت (Solar Hijri, e.g. 1395)
     parking: bool
     elevator: bool
     storage: bool

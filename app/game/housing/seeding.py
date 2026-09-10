@@ -4,6 +4,9 @@ The houses the bank/developer market starts with. Everything is generated
 from a fixed seed so every installation gets the same starter catalog and
 tests stay deterministic. Seeded houses are ownerless — they sit on the
 system market until a player buys them.
+
+Houses carry a **construction year** (سال ساخت, Solar Hijri); the age used
+for the quality roll is derived from it internally.
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from dataclasses import dataclass
 
 from app.core import constants
 from app.game.housing.catalog import CITY_NEIGHBORHOODS, list_cities
+from app.game.housing.construction_year import current_iranian_year
 
 # Areas (sqm) the starter market cycles through.
 _AREAS: tuple[int, ...] = (45, 55, 65, 75, 85, 100, 120, 140, 165, 200, 240)
@@ -34,7 +38,7 @@ class HouseSeedSpec:
     living_rooms: int
     bathrooms: int
     kitchen_type: str
-    building_age_years: int
+    construction_year: int
     parking: bool
     elevator: bool
     storage: bool
@@ -55,6 +59,8 @@ def build_seed_specs(count: int | None = None) -> list[HouseSeedSpec]:
     """Build the deterministic starter-market house list."""
     total = count if count is not None else constants.HOUSING_SEED_COUNT
     cities = list_cities()
+    current_year = current_iranian_year()
+    age_choices = (0, 1, 2, 3, 5, 8, 12, 15, 20, 25, 30)
     specs: list[HouseSeedSpec] = []
 
     for index in range(total):
@@ -68,7 +74,8 @@ def build_seed_specs(count: int | None = None) -> list[HouseSeedSpec]:
         living_rooms = 1 if area < 150 else 2
         bathrooms = 1 if area < 110 else 2
         kitchen = rng.choices(_KITCHEN_TYPES, weights=(4, 4, 2), k=1)[0]
-        age = rng.choice((0, 1, 2, 3, 5, 8, 12, 15, 20, 25, 30))
+        age = rng.choice(age_choices)
+        construction_year = current_year - age
         parking = area >= 70 or rng.random() < 0.35
         elevator = city in _HIGH_RISE_CITIES and area >= 60 and age <= 15
         storage = rng.random() < 0.5
@@ -83,7 +90,7 @@ def build_seed_specs(count: int | None = None) -> list[HouseSeedSpec]:
                 living_rooms=living_rooms,
                 bathrooms=bathrooms,
                 kitchen_type=kitchen,
-                building_age_years=age,
+                construction_year=construction_year,
                 parking=parking,
                 elevator=elevator,
                 storage=storage,

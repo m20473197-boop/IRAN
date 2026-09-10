@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core import constants
+from app.game.housing.construction_year import current_iranian_year
 from app.database.models.house_listing import HouseListing
 from app.database.models.house_sale import HouseSale
 from app.database.models.house_transaction import HouseTransaction
@@ -85,7 +86,7 @@ async def test_every_house_has_unique_id_and_full_properties(seeded):
         assert house.living_rooms >= 1
         assert house.bathrooms >= 1
         assert house.kitchen_type in ("مدرن", "معمولی", "قدیمی")
-        assert house.building_age_years >= 0
+        assert 1330 <= house.construction_year <= current_iranian_year()
         assert isinstance(house.parking, bool)
         assert isinstance(house.elevator, bool)
         assert isinstance(house.storage, bool)

@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core import constants
+from app.game.housing.construction_year import current_iranian_year
 from app.database.models.construction_project import ConstructionProject
 from app.database.models.land_transaction import LandTransaction
 from app.database.models.renovation_project import RenovationProject
@@ -321,7 +322,7 @@ async def test_construction_completion_creates_house_and_links_land(seeded, regi
     house = info.built_house
     assert house is not None
     assert house.owner_player_id == player.player_id
-    assert house.building_age_years == 0  # brand new building
+    assert house.construction_year == current_iranian_year()  # brand new building
     assert house.quality == "عالی"
     assert house.kitchen_type == "مدرن"  # excellent build ships modern kitchen
     assert house.area_sqm == spec.area_sqm
@@ -462,13 +463,18 @@ async def test_renovation_options_and_completion_raise_value(seeded, register):
     assert quality_upgrade.value_after == value_after
 
 
-async def test_modernize_reduces_building_age(seeded, register):
+async def test_modernize_advances_construction_year(seeded, register):
     services, _ = seeded
     player = await register(tg_id=3021)
     # Buy an old house from the housing market.
     await _give_money(services, player.player_id, BUDGET)
     houses = await services.housing.ensure_initial_houses()
-    old_house = next(h for h in houses if h.building_age_years >= renovation_domain.MODERNIZE_MIN_AGE)
+    old_house = next(
+        h
+        for h in houses
+        if current_iranian_year() - h.construction_year
+        >= renovation_domain.MODERNIZE_MIN_AGE
+    )
     await services.housing.buy_from_market(player.player_id, old_house.id)
 
     result = await services.realestate.start_renovation(
@@ -478,10 +484,11 @@ async def test_modernize_reduces_building_age(seeded, register):
     await services.realestate.settle_due()
 
     info = await services.housing.get_house_info(old_house.id)
-    expected_age = max(
-        0, old_house.building_age_years - renovation_domain.MODERNIZE_AGE_REDUCTION
+    expected_year = min(
+        current_iranian_year(),
+        old_house.construction_year + renovation_domain.MODERNIZE_AGE_REDUCTION,
     )
-    assert info.house.building_age_years == expected_age
+    assert info.house.construction_year == expected_year
 
 
 async def test_kitchen_and_facility_renovations_apply(seeded, register):

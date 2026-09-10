@@ -276,7 +276,7 @@ async def test_house_info_shows_all_properties(tg_env):
     await housing.show_house_info(make_update(query), make_context(services))
 
     text = edit_mock.await_args.kwargs["text"]
-    for expected in ("شهر", "محله", "متراژ", "خواب", "سرویس", "آشپزخانه", "عمر بنا",
+    for expected in ("شهر", "محله", "متراژ", "خواب", "سرویس", "آشپزخانه", "سال ساخت",
                      "پارکینگ", "آسانسور", "انباری", "کیفیت", "ارزش لحظه‌ای"):
         assert expected in text
 

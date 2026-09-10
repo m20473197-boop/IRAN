@@ -7,12 +7,17 @@ attributes and the market catalog each time it is needed:
           × neighborhood_multiplier
           × area                          ← raw volume
           × size_factor(area)             ← slight discount for very large homes
-          × age_factor(building_age)      ← depreciation with a floor
+          × age_factor(construction_year) ← depreciation with a floor
           × facility_factor               ← parking / elevator / storage / rooms
           × kitchen_factor(type)
           × quality_factor(level)
           × market_factor                 ← live-market override (default 1.0)
           × deterministic jitter          ← ±3% seeded by house id
+
+The building's age is never stored — it is derived internally from the
+construction year (سال ساخت):
+
+    building_age = current_iranian_year() − construction_year
 
 The result is rounded down to a clean 100,000-Toman step.
 
@@ -30,6 +35,10 @@ from dataclasses import dataclass
 from app.game.housing.catalog import (
     get_base_price_per_sqm,
     get_neighborhood_multiplier,
+)
+from app.game.housing.construction_year import (
+    age_from_construction_year,
+    validate_construction_year,
 )
 
 # --- Tunable factors ---------------------------------------------------------
@@ -95,7 +104,7 @@ class HousePricingInput:
     living_rooms: int
     bathrooms: int
     kitchen_type: str
-    building_age_years: int
+    construction_year: int     # سال ساخت (Solar Hijri, e.g. 1395)
     parking: bool
     elevator: bool
     storage: bool
@@ -110,10 +119,12 @@ def _size_factor(area_sqm: int) -> float:
     return 1.0
 
 
-def _age_factor(building_age_years: int) -> float:
-    if building_age_years <= 0:
+def _age_factor(construction_year: int) -> float:
+    """Depreciation derived from the construction year (not a stored age)."""
+    building_age = age_from_construction_year(construction_year)
+    if building_age <= 0:
         return 1.0
-    factor = 1.0 - building_age_years * AGE_DEPRECIATION_PER_YEAR
+    factor = 1.0 - building_age * AGE_DEPRECIATION_PER_YEAR
     return max(AGE_FACTOR_FLOOR, factor)
 
 
@@ -167,8 +178,9 @@ def estimate_house_price(
             from a future real-data connection). Defaults to a flat market.
 
     Raises:
-        ValueError: If the city or neighborhood is not in the catalog, or an
-            attribute is implausible (non-positive area, negative age, ...).
+        ValueError: If the city or neighborhood is not in the catalog, the
+            construction year is implausible, or an attribute is broken
+            (non-positive area, ...).
     """
     base_per_sqm = get_base_price_per_sqm(house.city)
     if base_per_sqm is None:
@@ -182,15 +194,14 @@ def estimate_house_price(
         )
     if house.area_sqm <= 0:
         raise ValueError("area_sqm must be positive")
-    if house.building_age_years < 0:
-        raise ValueError("building_age_years cannot be negative")
+    validate_construction_year(house.construction_year)
 
     price = (
         base_per_sqm
         * neighborhood_multiplier
         * house.area_sqm
         * _size_factor(house.area_sqm)
-        * _age_factor(house.building_age_years)
+        * _age_factor(house.construction_year)
         * _facility_factor(house)
         * _kitchen_factor(house.kitchen_type)
         * _quality_factor(house.quality)

@@ -8,6 +8,7 @@ from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Strin
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.models.base import Base
+from app.game.housing.construction_year import current_iranian_year
 
 
 class House(Base):
@@ -19,7 +20,11 @@ class House(Base):
         area_sqm: Floor area in square meters.
         bedrooms / living_rooms / bathrooms: Room counts.
         kitchen_type: ``مدرن`` | ``معمولی`` | ``قدیمی``.
-        building_age_years: Age of the building in years.
+        construction_year: The year the building was completed, in the
+            Iranian (Solar Hijri) calendar — e.g. ``1395``. The building's
+            age is never stored; it is derived internally as
+            ``current_iranian_year() − construction_year`` wherever needed
+            (pricing depreciation, modernize eligibility).
         parking / elevator / storage: Facility flags.
         quality: ``عالی`` | ``خوب`` | ``متوسط`` | ``ضعیف``.
         owner_player_id: FK to players.id — ``None`` means the house is still
@@ -46,7 +51,9 @@ class House(Base):
     bathrooms: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     kitchen_type: Mapped[str] = mapped_column(String(32), nullable=False, default="معمولی")
-    building_age_years: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    construction_year: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=current_iranian_year
+    )
 
     parking: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     elevator: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -75,5 +82,6 @@ class House(Base):
         return (
             f"<House id={self.id} city={self.city!r} "
             f"neighborhood={self.neighborhood!r} area={self.area_sqm} "
+            f"construction_year={self.construction_year} "
             f"owner={self.owner_player_id}>"
         )

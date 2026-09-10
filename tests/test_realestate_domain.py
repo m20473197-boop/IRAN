@@ -15,6 +15,7 @@ from app.game.realestate.land_pricing import (
     quality_label_for,
 )
 from app.game.realestate.market import current_market_factor
+from app.game.housing.construction_year import current_iranian_year
 from datetime import datetime, timezone
 
 
@@ -34,7 +35,7 @@ def make_house(**overrides) -> HouseData:
         living_rooms=1,
         bathrooms=1,
         kitchen_type="معمولی",
-        building_age_years=12,
+        construction_year=current_iranian_year() - 12,
         parking=False,
         elevator=False,
         storage=False,
@@ -236,7 +237,7 @@ def test_maxed_house_has_fewer_options():
         parking=True,
         elevator=True,
         storage=True,
-        building_age_years=1,
+        construction_year=current_iranian_year() - 1,
         area_sqm=180,   # room capacity = 5
         bedrooms=5,     # capacity reached → no room to add
     )
@@ -284,11 +285,15 @@ def test_apply_renovation_changes_expected_fields():
     assert renovation.apply_renovation(house, renovation.R_PARKING) == {"parking": True}
     assert renovation.apply_renovation(house, renovation.R_ELEVATOR) == {"elevator": True}
     assert renovation.apply_renovation(house, renovation.R_STORAGE) == {"storage": True}
-    assert renovation.apply_renovation(house, renovation.R_MODERNIZE) == {"building_age_years": 0}
+    # A 12-year-old house becomes brand new again (year jumps to the current).
+    modernized = make_house(construction_year=current_iranian_year() - 12)
+    assert renovation.apply_renovation(modernized, renovation.R_MODERNIZE) == {
+        "construction_year": current_iranian_year()
+    }
 
 
 def test_apply_renovation_rejects_non_applicable():
-    new_house = make_house(building_age_years=1)
+    new_house = make_house(construction_year=current_iranian_year() - 1)
     with pytest.raises(ValueError):
         renovation.apply_renovation(new_house, renovation.R_MODERNIZE)
     perfect = make_house(quality="عالی")

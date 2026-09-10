@@ -16,6 +16,7 @@ from telegram.error import BadRequest
 from app.bot.handlers import realestate
 from app.bot.keyboards import callbacks
 from app.database.models.construction_project import ConstructionProject
+from app.game.housing.construction_year import current_iranian_year
 from app.game.realestate import construction as construction_domain
 
 
@@ -346,7 +347,7 @@ async def test_full_renovation_flow(tg_env):
     await _give_money(services, player_id, 100_000_000_000)
 
     houses = await services.housing.ensure_initial_houses()
-    old_house = next(h for h in houses if h.building_age_years >= 5)
+    old_house = next(h for h in houses if current_iranian_year() - h.construction_year >= 5)
     await services.housing.buy_from_market(player_id, old_house.id)
 
     # Renovation menu lists the house

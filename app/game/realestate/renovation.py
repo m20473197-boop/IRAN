@@ -25,6 +25,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.game.housing.construction_year import (
+    age_from_construction_year,
+)
 from app.game.realestate.market import current_market_factor
 
 # Renovation type codes (ASCII for compact callback data).
@@ -98,6 +101,14 @@ MODERNIZE_MIN_AGE: int = 5
 # A house can hold at most this many bathrooms.
 MAX_BATHROOMS: int = 4
 
+# Persian digit rendering for year descriptions (kept local so the domain
+# layer never depends on the Telegram/bot layer).
+_FA_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+
+
+def _fa_year(year: int) -> str:
+    return str(year).translate(_FA_DIGITS)
+
 COST_ROUNDING_STEP: int = 100_000
 
 
@@ -136,7 +147,7 @@ def available_renovations(house) -> list[RenovationOption]:
 
     ``house`` is any object exposing the House attributes (ORM model or DTO):
     ``area_sqm, quality, kitchen_type, bathrooms, bedrooms, parking, elevator,
-    storage, building_age_years``.
+    storage, construction_year``.
     """
     factor = current_market_factor()
     area = house.area_sqm
@@ -213,16 +224,22 @@ def available_renovations(house) -> list[RenovationOption]:
                "از قبل دارد" if house.storage else "")
     )
 
-    # Modernize old buildings
-    if house.building_age_years < MODERNIZE_MIN_AGE:
+    # Modernize old buildings (age derived from the construction year)
+    building_age = age_from_construction_year(house.construction_year)
+    if building_age < MODERNIZE_MIN_AGE:
         options.append(
             option(R_MODERNIZE, "بنا از قبل نو است", 0, False, "نیازی به نوسازی نیست")
         )
     else:
-        new_age = max(0, house.building_age_years - MODERNIZE_AGE_REDUCTION)
+        new_year = house.construction_year + MODERNIZE_AGE_REDUCTION
         cost = area * MODERNIZE_COST_PER_SQM
         options.append(
-            option(R_MODERNIZE, f"عمر بنا: {house.building_age_years} → {new_age} سال", cost, True)
+            option(
+                R_MODERNIZE,
+                f"سال ساخت: {_fa_year(house.construction_year)} → {_fa_year(new_year)}",
+                cost,
+                True,
+            )
         )
 
     options.sort(key=lambda o: (not o.applicable, o.cost))
@@ -278,9 +295,12 @@ def apply_renovation(house, renovation_type: str) -> dict[str, object]:
     if renovation_type == R_STORAGE:
         return {"storage": True}
     if renovation_type == R_MODERNIZE:
+        from app.game.housing.construction_year import current_iranian_year
+
+        current = current_iranian_year()
         return {
-            "building_age_years": max(
-                0, house.building_age_years - MODERNIZE_AGE_REDUCTION
+            "construction_year": min(
+                current, house.construction_year + MODERNIZE_AGE_REDUCTION
             )
         }
     raise ValueError(f"unknown renovation type: {renovation_type!r}")

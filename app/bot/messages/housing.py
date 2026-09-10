@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.bot.messages.formatters import fa_int, money
+from app.bot.messages.formatters import fa_int, fa_year, money
 from app.game.housing.dto import (
     EndContractResult,
     HouseInfoData,
@@ -47,7 +47,7 @@ def housing_menu_text() -> str:
     return (
         "🏠 منوی خانه و ملک:\n\n"
         "می‌تونی خانه بخری، بفروشی، اجاره بدهی، زمین بخری، روش ساختمان بسازی و خونه‌ات رو بازسازی کنی.\n"
-        "قیمت همه خانه‌ها با قیمت‌گذاری پویا از روی شهر، محله، متراژ، عمر بنا و امکانات حساب می‌شه.\n"
+        "قیمت همه خانه‌ها با قیمت‌گذاری پویا از روی شهر، محله، متراژ، سال ساخت و امکانات حساب می‌شه.\n"
         "یکی از گزینه‌های پایین رو انتخاب کن 👇"
     )
 
@@ -62,7 +62,7 @@ def house_card(house: HouseData) -> str:
         f"🛋️ نشیمن: {fa_int(house.living_rooms)}\n"
         f"🚿 سرویس بهداشتی: {fa_int(house.bathrooms)}\n"
         f"{_KITCHEN_EMOJI.get(house.kitchen_type, '🍽️')} آشپزخانه: {house.kitchen_type}\n"
-        f"🏗️ عمر بنا: {fa_int(house.building_age_years)} سال\n"
+        f"📅 سال ساخت: {fa_year(house.construction_year)}\n"
         f"🚗 پارکینگ: {_YES if house.parking else _NO}\n"
         f"🛗 آسانسور: {_YES if house.elevator else _NO}\n"
         f"📦 انباری: {_YES if house.storage else _NO}\n"

@@ -73,6 +73,7 @@ from app.game.realestate.land_pricing import (
     estimate_land_price_per_sqm,
     quality_label_for,
 )
+from app.game.housing.construction_year import current_iranian_year
 from app.game.housing.seeding import CITY_NEIGHBORHOODS, list_cities
 from app.game.shared.errors import DomainError, InsufficientFundsError, PlayerNotFoundError
 from app.services.housing_service import (
@@ -793,7 +794,7 @@ class RealEstateService:
                     living_rooms=project.living_rooms,
                     bathrooms=project.bathrooms,
                     kitchen_type=project.kitchen_type,
-                    building_age_years=0,
+                    construction_year=current_iranian_year(),
                     parking=project.parking,
                     elevator=project.elevator,
                     storage=project.storage,
