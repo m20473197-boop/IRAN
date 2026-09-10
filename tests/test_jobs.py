@@ -1,23 +1,38 @@
-"""Job and Income System tests."""
+"""Job and Income System tests — time-based salary system."""
 
 from __future__ import annotations
 
-import asyncio
+import random
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import update
 
 from app.core import constants
+from app.database.models.player_job import PlayerJob
 from app.database.repositories.job_repository import JobRepository
-from app.database.repositories.player_job_repository import PlayerJobRepository
-from app.game.shared.errors import PlayerNotFoundError
+from app.services import ServiceRegistry
 from app.services.job_service import (
     AlreadyHasJobError,
-    JobCooldownError,
     JobNotFoundError,
+    JobNotEnoughTimeError,
     JobRequirementError,
+    JobService,
     NoJobError,
 )
+
+
+async def _set_started_at(services, player_id: int, minutes_ago: int) -> None:
+    """Rewind the work-start clock so elapsed time is deterministic."""
+    past = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
+    async with services.jobs._session_factory() as session:
+        stmt = (
+            update(PlayerJob)
+            .where(PlayerJob.player_id == player_id)
+            .values(started_at=past)
+        )
+        await session.execute(stmt, execution_options={"synchronize_session": False})
+        await session.commit()
 
 
 async def test_creating_jobs(services, db):
@@ -35,13 +50,15 @@ async def test_creating_jobs(services, db):
         assert constants.JOB_EMPLOYEE_NAME in names
         assert constants.JOB_SPECIALIST_NAME in names
 
-    # Create custom job
+    # Create custom job with hourly salary + employer
     async with db.session_factory() as session:
         repo = JobRepository(session)
         custom = await repo.create_job(
             name="برنامه‌نویس",
             description="تست",
             salary=500_000,
+            hourly_salary=750_000,
+            employer="استارتاپ زرین",
             cooldown=600,
             required_level=5,
         )
@@ -49,27 +66,34 @@ async def test_creating_jobs(services, db):
         assert custom.id is not None
         assert custom.name == "برنامه‌نویس"
         assert custom.salary == 500_000
+        assert custom.hourly_salary == 750_000
+        assert custom.employer == "استارتاپ زرین"
 
 
-async def test_listing_available_jobs(services, register):
-    await register(tg_id=8001)
+async def test_each_job_has_hourly_salary_and_employer(services):
     jobs = await services.jobs.get_available_jobs()
-
     assert len(jobs) >= 3
+
     for job in jobs:
-        assert job.is_active is True
-        assert job.salary > 0
-        assert job.cooldown > 0
-        assert job.required_level >= 1
+        assert job.hourly_salary > 0
+        assert job.employer.strip() != ""
 
-    # Check salaries match constants (initial jobs)
-    salaries = {j.name: j.salary for j in jobs}
-    assert salaries[constants.JOB_WORKER_NAME] == constants.JOB_WORKER_SALARY
-    assert salaries[constants.JOB_EMPLOYEE_NAME] == constants.JOB_EMPLOYEE_SALARY
-    assert salaries[constants.JOB_SPECIALIST_NAME] == constants.JOB_SPECIALIST_SALARY
+    salaries = {j.name: j.hourly_salary for j in jobs}
+    employers = {j.name: j.employer for j in jobs}
+    assert salaries[constants.JOB_WORKER_NAME] == constants.JOB_WORKER_HOURLY_SALARY
+    assert salaries[constants.JOB_EMPLOYEE_NAME] == constants.JOB_EMPLOYEE_HOURLY_SALARY
+    assert (
+        salaries[constants.JOB_SPECIALIST_NAME]
+        == constants.JOB_SPECIALIST_HOURLY_SALARY
+    )
+    assert employers[constants.JOB_WORKER_NAME] == constants.JOB_WORKER_EMPLOYER
+    assert employers[constants.JOB_EMPLOYEE_NAME] == constants.JOB_EMPLOYEE_EMPLOYER
+    assert (
+        employers[constants.JOB_SPECIALIST_NAME] == constants.JOB_SPECIALIST_EMPLOYER
+    )
 
 
-async def test_applying_for_a_job(services, register):
+async def test_applying_for_a_job_saves_start_time(services, register):
     player = await register(tg_id=8002)
 
     jobs = await services.jobs.get_available_jobs()
@@ -80,13 +104,21 @@ async def test_applying_for_a_job(services, register):
     assert result.success is True
     assert result.job_id == worker_job.id
     assert result.job_name == worker_job.name
+    assert result.employer == worker_job.employer
+    assert result.hourly_salary == worker_job.hourly_salary
 
-    # Check player job exists
+    # Check player job exists with a saved work start time
     player_job = await services.jobs.get_player_job(player.player_id)
     assert player_job is not None
     assert player_job.job_id == worker_job.id
     assert player_job.job_name == worker_job.name
+    assert player_job.employer == worker_job.employer
+    assert player_job.hourly_salary == worker_job.hourly_salary
+    assert player_job.started_at is not None
     assert player_job.total_earnings == 0
+    # Just started — no meaningful accrued salary yet.
+    assert player_job.worked_minutes == 0
+    assert player_job.accrued_salary == 0
 
 
 async def test_preventing_multiple_active_jobs(services, register):
@@ -136,140 +168,192 @@ async def test_checking_job_requirements(services, register):
         await services.jobs.apply_job(player.player_id, 999999)
 
 
-async def test_working_successfully(services, register):
+async def test_settlement_normal_payment(services, register, monkeypatch):
     player = await register(tg_id=8005)
 
     jobs = await services.jobs.get_available_jobs()
     worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
-
     await services.jobs.apply_job(player.player_id, worker.id)
 
-    balance_before = await services.money.get_balance(player.player_id)
-    assert balance_before == 0
+    await _set_started_at(services, player.player_id, minutes_ago=120)  # 2 hours
+    monkeypatch.setattr(services.jobs, "_roll_employer_event", lambda: ("normal", 0))
 
-    result = await services.jobs.work_job(player.player_id)
+    result = await services.jobs.settle_with_employer(player.player_id)
 
-    assert result.success is True
-    assert result.income == worker.salary
-    assert result.income == 50_000
-    assert result.balance_after == 50_000
-    assert result.total_earnings == 50_000
+    assert result.event_type == "normal"
+    assert result.status == "paid"
+    assert result.paid is True
+    assert result.worked_minutes == 120
+    assert result.hourly_salary == constants.JOB_WORKER_HOURLY_SALARY
+    assert result.gross_salary == constants.JOB_WORKER_HOURLY_SALARY * 2  # 120_000
+    assert result.final_amount == result.gross_salary
+    assert result.bonus_amount == 0
+    assert result.penalty_amount == 0
 
-    balance_after = await services.money.get_balance(player.player_id)
-    assert balance_after == 50_000
+    # Paid through the wallet
+    assert result.balance_after == result.gross_salary
+    assert await services.money.get_balance(player.player_id) == result.gross_salary
+
+    # Work timer reset
+    pj = await services.jobs.get_player_job(player.player_id)
+    assert pj is not None
+    assert pj.worked_minutes == 0
+    assert pj.total_earnings == result.gross_salary
 
 
-async def test_preventing_work_before_cooldown_ends(services, register):
+async def test_settlement_bonus_payment(services, register, monkeypatch):
     player = await register(tg_id=8006)
 
     jobs = await services.jobs.get_available_jobs()
     worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
-
     await services.jobs.apply_job(player.player_id, worker.id)
-    first = await services.jobs.work_job(player.player_id)
-    assert first.success is True
 
-    # Immediate second work should fail with cooldown
-    with pytest.raises(JobCooldownError) as exc_info:
-        await services.jobs.work_job(player.player_id)
+    await _set_started_at(services, player.player_id, minutes_ago=60)  # 1 hour
+    monkeypatch.setattr(services.jobs, "_roll_employer_event", lambda: ("bonus", 20))
 
-    assert exc_info.value.remaining_seconds > 0
-    assert exc_info.value.remaining_seconds <= worker.cooldown
+    result = await services.jobs.settle_with_employer(player.player_id)
 
-    # Balance should not increase
-    assert await services.money.get_balance(player.player_id) == worker.salary
-
-    # Simulate cooldown passed
-    past = datetime.now(timezone.utc) - timedelta(seconds=worker.cooldown + 10)
-    async with services.jobs._session_factory() as session:
-        from app.database.models.player_job import PlayerJob
-
-        from sqlalchemy import update
-
-        stmt = (
-            update(PlayerJob)
-            .where(PlayerJob.player_id == player.player_id)
-            .values(last_work_time=past)
-        )
-        await session.execute(stmt, execution_options={"synchronize_session": False})
-        await session.commit()
-
-    second = await services.jobs.work_job(player.player_id)
-    assert second.success is True
-    assert await services.money.get_balance(player.player_id) == worker.salary * 2
+    gross = constants.JOB_WORKER_HOURLY_SALARY  # 1 hour
+    assert result.event_type == "bonus"
+    assert result.bonus_percent == 20
+    assert result.bonus_amount == gross * 20 // 100
+    assert result.final_amount == gross + result.bonus_amount
+    assert result.paid is True
+    assert await services.money.get_balance(player.player_id) == result.final_amount
 
 
-async def test_salary_payment_through_wallet_service(services, register):
+async def test_settlement_mistake_penalty(services, register, monkeypatch):
     player = await register(tg_id=8007)
 
     jobs = await services.jobs.get_available_jobs()
-    employee = next(j for j in jobs if j.name == constants.JOB_EMPLOYEE_NAME)
+    worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
+    await services.jobs.apply_job(player.player_id, worker.id)
 
-    # Level up to 2 for employee
-    await services.levels.add_xp(player.player_id, 100, reason="up")
+    # 2 hours -> 120_000 gross, 30% penalty -> 84_000
+    await _set_started_at(services, player.player_id, minutes_ago=120)
+    monkeypatch.setattr(services.jobs, "_roll_employer_event", lambda: ("mistake", 30))
 
-    await services.jobs.apply_job(player.player_id, employee.id)
+    result = await services.jobs.settle_with_employer(player.player_id)
 
-    # Work and check via MoneyService
-    await services.jobs.work_job(player.player_id)
-    balance = await services.money.get_balance(player.player_id)
-    assert balance == employee.salary
-    assert balance == 100_000
-
-    # Add extra money via MoneyService, ensure stacking
-    await services.money.add_money(player.player_id, 10_000)
-    assert await services.money.get_balance(player.player_id) == 110_000
-
-    # Work after cooldown
-    past = datetime.now(timezone.utc) - timedelta(seconds=employee.cooldown + 5)
-    async with services.jobs._session_factory() as session:
-        from app.database.models.player_job import PlayerJob
-        from sqlalchemy import update
-
-        stmt = (
-            update(PlayerJob)
-            .where(PlayerJob.player_id == player.player_id)
-            .values(last_work_time=past)
-        )
-        await session.execute(stmt, execution_options={"synchronize_session": False})
-        await session.commit()
-
-    await services.jobs.work_job(player.player_id)
-    assert await services.money.get_balance(player.player_id) == 210_000
+    gross = constants.JOB_WORKER_HOURLY_SALARY * 2  # 120_000
+    assert result.event_type == "mistake"
+    assert result.penalty_percent == 30
+    assert result.penalty_amount == gross * 30 // 100  # 36_000
+    assert result.final_amount == gross - result.penalty_amount  # 84_000
+    assert result.paid is True
+    assert await services.money.get_balance(player.player_id) == result.final_amount
 
 
-async def test_job_history_creation(services, register):
+async def test_settlement_delayed_payment_comes_later(services, register, monkeypatch):
     player = await register(tg_id=8008)
 
     jobs = await services.jobs.get_available_jobs()
     worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
-
     await services.jobs.apply_job(player.player_id, worker.id)
 
-    # Work twice with cooldown manipulation
-    await services.jobs.work_job(player.player_id)
+    await _set_started_at(services, player.player_id, minutes_ago=120)
+    monkeypatch.setattr(services.jobs, "_roll_employer_event", lambda: ("delayed", 0))
 
-    past = datetime.now(timezone.utc) - timedelta(seconds=worker.cooldown + 1)
-    async with services.jobs._session_factory() as session:
-        from app.database.models.player_job import PlayerJob
-        from sqlalchemy import update
+    first = await services.jobs.settle_with_employer(player.player_id)
 
-        stmt = (
-            update(PlayerJob)
-            .where(PlayerJob.player_id == player.player_id)
-            .values(last_work_time=past)
+    assert first.event_type == "delayed"
+    assert first.status == "delayed"
+    assert first.paid is False
+    assert first.final_amount == 0
+
+    # No money received immediately
+    assert await services.money.get_balance(player.player_id) == 0
+
+    # Work timer NOT reset — the accrued hours are still pending
+    pj = await services.jobs.get_player_job(player.player_id)
+    assert pj is not None
+    assert pj.worked_minutes >= 120
+
+    # Later, the employer pays normally — the delayed work is included.
+    await _set_started_at(services, player.player_id, minutes_ago=120)
+    monkeypatch.setattr(services.jobs, "_roll_employer_event", lambda: ("normal", 0))
+    second = await services.jobs.settle_with_employer(player.player_id)
+
+    gross = constants.JOB_WORKER_HOURLY_SALARY * 2
+    assert second.paid is True
+    assert second.final_amount == gross
+    assert await services.money.get_balance(player.player_id) == gross
+
+
+async def test_settlement_before_one_minute_is_rejected(services, register):
+    player = await register(tg_id=8009)
+
+    jobs = await services.jobs.get_available_jobs()
+    worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
+    await services.jobs.apply_job(player.player_id, worker.id)
+
+    with pytest.raises(JobNotEnoughTimeError):
+        await services.jobs.settle_with_employer(player.player_id)
+
+    # Nothing was paid, timer still running from the start.
+    assert await services.money.get_balance(player.player_id) == 0
+
+
+async def test_employer_event_rolls_stay_in_bounds():
+    # Exercise the real random roller with a seeded RNG.
+    service = JobService(None, rng=random.Random(12345))  # type: ignore[arg-type]
+    valid_types = {"normal", "bonus", "mistake", "delayed"}
+    for _ in range(500):
+        event_type, percent = service._roll_employer_event()
+        assert event_type in valid_types
+        if event_type == "mistake":
+            assert (
+                constants.MISTAKE_PENALTY_MIN_PERCENT
+                <= percent
+                <= constants.MISTAKE_PENALTY_MAX_PERCENT
+            )
+        elif event_type == "bonus":
+            assert constants.BONUS_MIN_PERCENT <= percent <= constants.BONUS_MAX_PERCENT
+        else:
+            assert percent == 0
+
+
+async def test_all_events_are_saved(services, register, monkeypatch):
+    player = await register(tg_id=8010)
+
+    jobs = await services.jobs.get_available_jobs()
+    worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
+    await services.jobs.apply_job(player.player_id, worker.id)
+
+    rolls = [
+        ("normal", 0),
+        ("bonus", 15),
+        ("mistake", 40),
+        ("delayed", 0),
+    ]
+    for event, percent in rolls:
+        await _set_started_at(services, player.player_id, minutes_ago=60)
+        monkeypatch.setattr(
+            services.jobs, "_roll_employer_event", lambda e=event, p=percent: (e, p)
         )
-        await session.execute(stmt, execution_options={"synchronize_session": False})
-        await session.commit()
+        await services.jobs.settle_with_employer(player.player_id)
 
-    await services.jobs.work_job(player.player_id)
+    events = await services.jobs.get_salary_events(player.player_id, limit=20)
+    # Newest first.
+    assert len(events) == 4
+    kinds = {e.event_type for e in events}
+    assert kinds == {"normal", "bonus", "mistake", "delayed"}
 
-    # Check history
-    history = await services.jobs.get_job_history(player.player_id, limit=10)
-    assert len(history) == 2
-    assert all(h.income == worker.salary for h in history)
-    assert all(h.job_id == worker.id for h in history)
-    assert history[0].job_name == worker.name
+    delayed = next(e for e in events if e.event_type == "delayed")
+    assert delayed.status == "delayed"
+    assert delayed.final_amount == 0
+    assert delayed.gross_salary > 0
+
+    mistake = next(e for e in events if e.event_type == "mistake")
+    assert mistake.penalty_percent == 40
+    assert mistake.penalty_amount > 0
+    assert mistake.final_amount == mistake.gross_salary - mistake.penalty_amount
+
+    bonus = next(e for e in events if e.event_type == "bonus")
+    assert bonus.bonus_percent == 15
+    assert bonus.final_amount == bonus.gross_salary + bonus.bonus_amount
+
+    assert all(e.employer == worker.employer for e in events)
 
 
 async def test_database_persistence(db, services, register):
@@ -279,26 +363,31 @@ async def test_database_persistence(db, services, register):
     worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
 
     await services.jobs.apply_job(player.player_id, worker.id)
-    await services.jobs.work_job(player.player_id)
+    await _set_started_at(services, player.player_id, minutes_ago=60)
+    # Deterministic normal payment for this isolated test
+    services.jobs._roll_employer_event = lambda: ("normal", 0)
+    await services.jobs.settle_with_employer(player.player_id)
 
     # Simulate restart
-    from app.services import ServiceRegistry
-
     new_services = ServiceRegistry(db.session_factory)
 
     # Job should persist
     pj = await new_services.jobs.get_player_job(player.player_id)
     assert pj is not None
     assert pj.job_id == worker.id
-    assert pj.total_earnings == worker.salary
+    assert pj.total_earnings == constants.JOB_WORKER_HOURLY_SALARY
 
-    # History should persist
-    history = await new_services.jobs.get_job_history(player.player_id)
-    assert len(history) == 1
-    assert history[0].income == worker.salary
+    # Events should persist
+    events = await new_services.jobs.get_salary_events(player.player_id)
+    assert len(events) == 1
+    assert events[0].event_type == "normal"
+    assert events[0].gross_salary == constants.JOB_WORKER_HOURLY_SALARY
 
     # Money should persist
-    assert await new_services.money.get_balance(player.player_id) == worker.salary
+    assert (
+        await new_services.money.get_balance(player.player_id)
+        == constants.JOB_WORKER_HOURLY_SALARY
+    )
 
     # Available jobs should still exist
     all_jobs = await new_services.jobs.get_available_jobs()
@@ -312,72 +401,42 @@ async def test_leave_job(services, register):
     worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
 
     await services.jobs.apply_job(player.player_id, worker.id)
-    await services.jobs.work_job(player.player_id)
+    await _set_started_at(services, player.player_id, minutes_ago=60)
+    services.jobs._roll_employer_event = lambda: ("normal", 0)
+    await services.jobs.settle_with_employer(player.player_id)
 
     # Leave
     leave_result = await services.jobs.leave_job(player.player_id)
     assert leave_result.success is True
-    assert leave_result.total_earnings == worker.salary
+    assert leave_result.total_earnings == constants.JOB_WORKER_HOURLY_SALARY
 
     # No job now
     assert await services.jobs.get_player_job(player.player_id) is None
 
-    # Work should fail
+    # Settle should fail
     with pytest.raises(NoJobError):
-        await services.jobs.work_job(player.player_id)
+        await services.jobs.settle_with_employer(player.player_id)
 
     # Can apply again
     result = await services.jobs.apply_job(player.player_id, worker.id)
     assert result.success is True
 
 
-async def test_concurrent_work_does_not_bypass_cooldown(services, register):
-    player = await register(tg_id=8011)
-
-    jobs = await services.jobs.get_available_jobs()
-    worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
-
-    await services.jobs.apply_job(player.player_id, worker.id)
-
-    # 5 concurrent work attempts
-    results = []
-    errors = []
-
-    async def try_work():
-        try:
-            r = await services.jobs.work_job(player.player_id)
-            results.append(r)
-        except JobCooldownError as e:
-            errors.append(e)
-        except Exception as e:
-            errors.append(e)
-
-    await asyncio.gather(*[try_work() for _ in range(5)])
-
-    assert len(results) == 1
-    assert len(errors) == 4
-    assert await services.money.get_balance(player.player_id) == worker.salary
-
-
 async def test_job_messages_simple():
     from app.bot.messages.job import (
         job_applied_success,
         job_no_job,
-        job_work_cooldown,
-        job_work_success,
+        job_settle_too_early,
     )
 
-    # Simple messages, no motivational
-    applied = job_applied_success("کارگر")
+    applied = job_applied_success("کارگر", "کارگاه حاج رضا", 60_000)
     assert "کارگر" in applied
     assert "موفقیت" in applied
-
-    success = job_work_success(100_000, 100_000)
-    assert "کار انجام شد" in success
-    assert "تومان" in success
-
-    cooldown = job_work_cooldown(125)
-    assert "زمان" in cooldown
+    assert "کارگاه حاج رضا" in applied
+    assert "تومان" in applied
 
     no_job = job_no_job()
     assert "شغلی نداری" in no_job
+
+    too_early = job_settle_too_early()
+    assert "دقیقه" in too_early

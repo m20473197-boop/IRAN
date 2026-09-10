@@ -2,9 +2,10 @@
 
 A multiplayer **life-simulation game** running as a **Telegram Bot**, inspired
 by real life in Iran — casual, humorous and friendly. This repository contains
-**stage 1: the clean, scalable foundation** (player system, main menu, profile,
-status, level/XP service, money service). Future systems (jobs, economy,
-housing, crime, markets, ...) will be built on top of this base step by step.
+the clean, scalable foundation plus the **Job and Income System**: the player
+system, main menu, profile, status, level/XP service, money service and a
+time-based salary job system. Future systems (economy, housing, crime, markets,
+...) will be built on top of this base step by step.
 
 ## Tech Stack
 
@@ -95,7 +96,9 @@ pytest
 The suite covers registration, duplicate prevention (including concurrent
 `/start`), starting values, level/XP progression, the money service, profile
 and status retrieval, DB persistence across restarts, keyboard/menu shape,
-handler flows, config guards and log-secret redaction — **57 tests**.
+handler flows, config guards, log-secret redaction, the time-based salary
+job system (settlement, employer behaviour, penalties, bonuses and delayed
+payments) and the additive column migration — **98 tests**.
 
 ## Basic Project Structure
 
@@ -103,7 +106,7 @@ handler flows, config guards and log-secret redaction — **57 tests**.
 iran_life_bot/
 ├── app/
 │   ├── bot/                     # Telegram layer (and nothing else)
-│   │   ├── handlers/            #   start, main-menu callbacks, error handler
+│   │   ├── handlers/            #   start, main-menu callbacks, jobs, error handler
 │   │   ├── keyboards/           #   inline keyboard builders + callback ids
 │   │   ├── messages/            #   ALL player-facing Persian texts
 │   │   ├── middleware/          #   cross-cutting update processing
@@ -113,7 +116,7 @@ iran_life_bot/
 │   │   ├── logging.py           # structured logging + secret redaction
 │   │   └── constants.py         # starting values, tunable XP curve, limits
 │   ├── database/
-│   │   ├── models/              # SQLAlchemy ORM models (Player)
+│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, JobEvent, ...)
 │   │   ├── repositories/        # the only layer that queries the DB
 │   │   ├── database.py          # async engine + session factory
 │   │   └── migrations/          # migration strategy notes (Alembic later)
@@ -163,13 +166,37 @@ Design decisions worth knowing:
   even if it ever appears inside an exception traceback.
 - **No age attribute** exists anywhere in the model — progression is Level + XP only.
 
+## Job and Income System — time-based salary
+
+Jobs are no longer a "type `کار` to earn per click" mechanic. Instead, each job
+pays a **hourly salary** from a named **employer** (صاحبکار):
+
+1. Pick a job from 💼 شغل‌ها — the work start time is saved immediately.
+2. Working time accrues automatically from that moment.
+3. Press **💰 تسویه با صاحبکار** whenever you want to get paid:
+   - the hours worked are calculated,
+   - the salary is computed from the hourly rate,
+   - the money is paid through the wallet system,
+   - the work timer is reset.
+
+Settling with the employer triggers a random **employer-behaviour event**:
+
+| Event | Effect |
+|-------|--------|
+| ✅ Normal payment | Full earned salary is paid. |
+| 🎉 Bonus payment | A random 10–30% bonus is added on top. |
+| ⚠️ Mistake | A random 10–50% penalty is deducted from the earned salary. |
+| ⏳ Delayed payment | The employer withholds payment — the timer keeps running so you can settle again later. |
+
+Every event (payments, bonuses, penalties and delayed payments) is saved to the
+`job_events` table and shown in 📜 تاریخچه تسویه‌ها.
+
 ## What is intentionally NOT in this stage
 
-Jobs, income, education, skills, housing, vehicles, marriage, businesses,
-loans, investments, markets, inflation, trading, crime, police, prisons,
+Education, skills, housing, vehicles, marriage, businesses, loans,
+investments, markets, inflation, trading, crime, police, prisons,
 bankruptcy, crises and similar systems are **not implemented** — the
-architecture is simply prepared for them. The main menu only exposes
-features that actually exist (Profile, Status).
+architecture is simply prepared for them.
 
 ## Useful Commands
 

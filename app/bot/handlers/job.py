@@ -1,4 +1,4 @@
-"""Job system handlers — menu, apply, work, leave, history.
+"""Job system handlers — menu, apply, settle, leave, history.
 
 All business logic in JobService, handlers only translate Telegram -> service.
 """
@@ -11,25 +11,34 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.bot.context import get_services
-from app.bot.keyboards import build_back_to_main, build_jobs_list, build_jobs_menu, callbacks
+from app.bot.keyboards import build_jobs_list, build_jobs_menu, callbacks
 from app.bot.messages import job as job_messages
 from app.bot.messages import errors as error_messages
 from app.game.shared.errors import PlayerNotFoundError
 from app.services.job_service import (
     AlreadyHasJobError,
-    JobCooldownError,
     JobNotFoundError,
+    JobNotEnoughTimeError,
     JobRequirementError,
     NoJobError,
 )
 
 logger = logging.getLogger(__name__)
 
-WORK_TEXT_TRIGGER = "کار"
 JOBS_TEXT_TRIGGER = "مشاغل"
 MY_JOB_TEXT_TRIGGER = "شغل من"
 LEAVE_JOB_TEXT_TRIGGER = "ترک کار"
 APPLY_JOB_TEXT_TRIGGER = "استخدام"
+
+
+async def _resolve_player_id(services, tg_id: int) -> int | None:
+    """Map a Telegram user id to the internal player id (None if unregistered)."""
+    from app.database.repositories.player_repository import PlayerRepository
+
+    async with services.players._session_factory() as session:  # type: ignore
+        repo = PlayerRepository(session)
+        player = await repo.get_by_telegram_user_id(tg_id)
+        return player.id if player is not None else None
 
 
 async def show_jobs_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -65,18 +74,12 @@ async def show_my_job(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     services = get_services(context)
     tg_id = query.from_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await query.edit_message_text(
-                text=error_messages.NOT_REGISTERED, reply_markup=None
-            )
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await query.edit_message_text(
+            text=error_messages.NOT_REGISTERED, reply_markup=None
+        )
+        return
 
     try:
         player_job = await services.jobs.get_player_job(player_id)
@@ -91,45 +94,38 @@ async def show_my_job(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
-async def work_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Work via button."""
+async def settle_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """💰 تسویه با صاحبکار — settle the accrued salary."""
     query = update.callback_query
-    if query is None or query.data != callbacks.JOBS_WORK:
+    if query is None or query.data != callbacks.JOBS_SETTLE:
         return
     await query.answer()
 
     services = get_services(context)
     tg_id = query.from_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await query.edit_message_text(
-                text=error_messages.NOT_REGISTERED, reply_markup=None
-            )
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await query.edit_message_text(
+            text=error_messages.NOT_REGISTERED, reply_markup=None
+        )
+        return
 
     try:
-        result = await services.jobs.work_job(player_id)
+        result = await services.jobs.settle_with_employer(player_id)
         await query.edit_message_text(
-            text=job_messages.job_work_success(result.income, result.balance_after),
+            text=job_messages.settlement_text(result),
             reply_markup=build_jobs_menu(),
         )
     except NoJobError:
         await query.edit_message_text(
             text=job_messages.job_no_job(), reply_markup=build_jobs_menu()
         )
-    except JobCooldownError as exc:
+    except JobNotEnoughTimeError:
         await query.edit_message_text(
-            text=job_messages.job_work_cooldown(exc.remaining_seconds),
-            reply_markup=build_jobs_menu(),
+            text=job_messages.job_settle_too_early(), reply_markup=build_jobs_menu()
         )
     except Exception as exc:
-        logger.error("work_job_callback failed for %s", tg_id, exc_info=exc)
+        logger.error("settle_job_callback failed for %s", tg_id, exc_info=exc)
         await query.edit_message_text(
             text=error_messages.GENERIC, reply_markup=build_jobs_menu()
         )
@@ -143,18 +139,12 @@ async def leave_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     services = get_services(context)
     tg_id = query.from_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await query.edit_message_text(
-                text=error_messages.NOT_REGISTERED, reply_markup=None
-            )
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await query.edit_message_text(
+            text=error_messages.NOT_REGISTERED, reply_markup=None
+        )
+        return
 
     try:
         result = await services.jobs.leave_job(player_id)
@@ -190,22 +180,19 @@ async def apply_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer(text="شناسه شغل نامعتبر است.", show_alert=True)
         return
 
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await query.edit_message_text(
-                text=error_messages.NOT_REGISTERED, reply_markup=None
-            )
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await query.edit_message_text(
+            text=error_messages.NOT_REGISTERED, reply_markup=None
+        )
+        return
 
     try:
         result = await services.jobs.apply_job(player_id, job_id)
         await query.edit_message_text(
-            text=job_messages.job_applied_success(result.job_name),
+            text=job_messages.job_applied_success(
+                result.job_name, result.employer, result.hourly_salary
+            ),
             reply_markup=build_jobs_menu(),
         )
     except JobNotFoundError:
@@ -235,23 +222,17 @@ async def show_job_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     services = get_services(context)
     tg_id = query.from_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await query.edit_message_text(
-                text=error_messages.NOT_REGISTERED, reply_markup=None
-            )
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await query.edit_message_text(
+            text=error_messages.NOT_REGISTERED, reply_markup=None
+        )
+        return
 
     try:
-        histories = await services.jobs.get_job_history(player_id, limit=10)
+        events = await services.jobs.get_salary_events(player_id, limit=10)
         await query.edit_message_text(
-            text=job_messages.job_history_text(histories),
+            text=job_messages.salary_events_text(events),
             reply_markup=build_jobs_menu(),
         )
     except Exception as exc:
@@ -261,45 +242,7 @@ async def show_job_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
 
 
-async def work_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle text message 'کار' for working."""
-    if update.message is None or update.effective_user is None:
-        return
-
-    text = (update.message.text or "").strip()
-    if text != "کار":
-        return
-
-    services = get_services(context)
-    tg_id = update.effective_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await update.message.reply_text(error_messages.NOT_REGISTERED)
-            return
-        player_id = player.id
-
-    try:
-        result = await services.jobs.work_job(player_id)
-        await update.message.reply_text(
-            job_messages.job_work_success(result.income, result.balance_after)
-        )
-    except NoJobError:
-        await update.message.reply_text(job_messages.job_no_job())
-    except JobCooldownError as exc:
-        await update.message.reply_text(
-            job_messages.job_work_cooldown(exc.remaining_seconds)
-        )
-    except Exception as exc:
-        logger.error("work_text_handler failed for %s", tg_id, exc_info=exc)
-        await update.message.reply_text(error_messages.GENERIC)
-
-
-# --- New Persian command handlers ----------------------------------------
+# --- Persian command handlers ----------------------------------------
 
 
 async def jobs_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -311,15 +254,10 @@ async def jobs_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     services = get_services(context)
     tg_id = update.effective_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await update.message.reply_text(error_messages.NOT_REGISTERED)
-            return
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await update.message.reply_text(error_messages.NOT_REGISTERED)
+        return
 
     try:
         jobs = await services.jobs.get_available_jobs()
@@ -341,16 +279,10 @@ async def my_job_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     services = get_services(context)
     tg_id = update.effective_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await update.message.reply_text(error_messages.NOT_REGISTERED)
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await update.message.reply_text(error_messages.NOT_REGISTERED)
+        return
 
     try:
         pj = await services.jobs.get_player_job(player_id)
@@ -371,16 +303,10 @@ async def leave_job_text_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     services = get_services(context)
     tg_id = update.effective_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await update.message.reply_text(error_messages.NOT_REGISTERED)
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await update.message.reply_text(error_messages.NOT_REGISTERED)
+        return
 
     try:
         result = await services.jobs.leave_job(player_id)
@@ -411,16 +337,10 @@ async def apply_job_text_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     services = get_services(context)
     tg_id = update.effective_user.id
-
-    from app.database.repositories.player_repository import PlayerRepository
-
-    async with services.players._session_factory() as session:
-        repo = PlayerRepository(session)
-        player = await repo.get_by_telegram_user_id(tg_id)
-        if player is None:
-            await update.message.reply_text(error_messages.NOT_REGISTERED)
-            return
-        player_id = player.id
+    player_id = await _resolve_player_id(services, tg_id)
+    if player_id is None:
+        await update.message.reply_text(error_messages.NOT_REGISTERED)
+        return
 
     # Parse argument after 'استخدام'
     arg = raw_text[len(APPLY_JOB_TEXT_TRIGGER) :].strip()
@@ -456,7 +376,6 @@ async def apply_job_text_handler(update: Update, context: ContextTypes.DEFAULT_T
 
         # Try by contains
         if target_job is None:
-            # Allow partial match
             for j in jobs:
                 if arg in j.name:
                     target_job = j
@@ -468,7 +387,9 @@ async def apply_job_text_handler(update: Update, context: ContextTypes.DEFAULT_T
 
         result = await services.jobs.apply_job(player_id, target_job.id)
         await update.message.reply_text(
-            text=job_messages.job_applied_success(result.job_name),
+            text=job_messages.job_applied_success(
+                result.job_name, result.employer, result.hourly_salary
+            ),
             reply_markup=build_jobs_menu(),
         )
     except JobNotFoundError:

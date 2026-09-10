@@ -2,6 +2,7 @@
 
 from app.database.models.base import Base
 from app.database.models.job import Job
+from app.database.models.job_event import JobEvent
 from app.database.models.job_history import JobHistory
 from app.database.models.level_up_history import LevelUpHistory
 from app.database.models.player import Player
@@ -16,4 +17,5 @@ __all__ = [
     "Job",
     "PlayerJob",
     "JobHistory",
+    "JobEvent",
 ]

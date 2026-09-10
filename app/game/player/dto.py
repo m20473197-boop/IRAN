@@ -135,6 +135,8 @@ class JobData:
     name: str
     description: str
     salary: int
+    hourly_salary: int
+    employer: str
     cooldown: int
     required_level: int
     required_skill: str | None
@@ -152,12 +154,17 @@ class PlayerJobData:
     job_name: str
     job_description: str
     salary: int
+    hourly_salary: int
+    employer: str
     cooldown: int
     started_at: datetime
     last_work_time: datetime | None
     total_earnings: int
     created_at: datetime
     updated_at: datetime
+    # Live values computed against the current time (time-based salary system).
+    worked_minutes: int = 0
+    accrued_salary: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,28 +180,60 @@ class JobHistoryData:
 
 
 @dataclass(frozen=True, slots=True)
+class JobEventData:
+    """DTO for a single saved settlement event (payment/bonus/penalty/delay)."""
+
+    id: int
+    player_id: int
+    job_id: int
+    employer: str
+    event_type: str
+    status: str
+    worked_minutes: int
+    hourly_salary: int
+    gross_salary: int
+    bonus_percent: int | None
+    bonus_amount: int
+    penalty_percent: int | None
+    penalty_amount: int
+    final_amount: int
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class JobApplyResult:
     """Outcome of applying for a job."""
 
     player_id: int
     job_id: int
     job_name: str
+    employer: str
+    hourly_salary: int
     success: bool
     message: str
 
 
 @dataclass(frozen=True, slots=True)
-class JobWorkResult:
-    """Outcome of working a job."""
+class SettlementResult:
+    """Outcome of settling accounts with the employer (💰 تسویه با صاحبکار)."""
 
     player_id: int
     job_id: int
     job_name: str
-    success: bool
-    income: int
+    employer: str
+    event_type: str
+    status: str
+    worked_minutes: int
+    hourly_salary: int
+    gross_salary: int
+    bonus_percent: int | None
+    bonus_amount: int
+    penalty_percent: int | None
+    penalty_amount: int
+    final_amount: int
+    paid: bool
     balance_after: int
     total_earnings: int
-    remaining_seconds: int
     message: str
 
 

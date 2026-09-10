@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 from app.bot.messages.formatters import fa_int, money
-from app.game.player.dto import JobData, JobHistoryData, PlayerJobData
+from app.game.player.dto import (
+    JobData,
+    JobEventData,
+    PlayerJobData,
+    SettlementResult,
+)
 
 
 def jobs_menu_text() -> str:
     return (
         "💼 منوی شغل‌ها:\n\n"
         "از اینجا می‌تونی شغل انتخاب کنی، کار کنی و درآمد بگیری.\n"
-        "یک گزینه رو انتخاب کن 👇"
+        "یه شغل انتخاب کن و هر وقت خواستی با صاحبکار تسویه کن 👇"
     )
 
 
@@ -23,62 +28,91 @@ def jobs_list_text(jobs: list[JobData]) -> str:
         lines.append(
             f"• {job.name}\n"
             f"  {job.description}\n"
-            f"  💰 حقوق: {money(job.salary)}\n"
-            f"  ⏱️ وقفه: {job.cooldown // 60} دقیقه\n"
+            f"  🏢 صاحبکار: {job.employer}\n"
+            f"  💰 حقوق ساعتی: {money(job.hourly_salary)}\n"
             f"  ⭐ لول مورد نیاز: {fa_int(job.required_level)}\n"
         )
     lines.append("برای انتخاب شغل، روی دکمه مربوطه بزن 👇")
     return "\n".join(lines)
 
 
+def _format_duration(minutes: int) -> str:
+    hours = minutes // 60
+    rest = minutes % 60
+    if hours > 0 and rest > 0:
+        return f"{fa_int(hours)} ساعت و {fa_int(rest)} دقیقه"
+    if hours > 0:
+        return f"{fa_int(hours)} ساعت"
+    return f"{fa_int(rest)} دقیقه"
+
+
 def my_job_text(player_job: PlayerJobData | None) -> str:
     if player_job is None:
         return "شغلی نداری.\nاز لیست شغل‌ها یکی رو انتخاب کن."
 
-    last_work = "هرگز"
-    if player_job.last_work_time:
-        last_work = player_job.last_work_time.strftime("%Y-%m-%d %H:%M")
-
     return (
         f"👔 شغل فعلیت: {player_job.job_name}\n"
         f"📝 {player_job.job_description}\n"
-        f"💰 حقوق هر کار: {money(player_job.salary)}\n"
-        f"⏱️ وقفه: {player_job.cooldown // 60} دقیقه\n"
-        f"📅 شروع: {player_job.started_at.strftime('%Y-%m-%d %H:%M')}\n"
-        f"🔨 آخرین کار: {last_work}\n"
-        f"💵 کل درآمد از این شغل: {money(player_job.total_earnings)}"
+        f"🏢 صاحبکار: {player_job.employer}\n"
+        f"💰 حقوق ساعتی: {money(player_job.hourly_salary)}\n"
+        f"📅 شروع کار: {player_job.started_at.strftime('%Y-%m-%d %H:%M')}\n"
+        f"⏱️ مدت کار: {_format_duration(player_job.worked_minutes)}\n"
+        f"🧮 درآمد فعلی (تسویه‌نشده): {money(player_job.accrued_salary)}\n"
+        f"💵 کل دریافتی از این شغل: {money(player_job.total_earnings)}\n\n"
+        "هر وقت خواستی با دکمه «تسویه با صاحبکار» حقوقت رو بگیر 👇"
     )
 
 
-def job_applied_success(job_name: str) -> str:
-    return f"شغل {job_name} با موفقیت انتخاب شد."
+def job_applied_success(job_name: str, employer: str, hourly_salary: int) -> str:
+    return (
+        f"شغل {job_name} با موفقیت انتخاب شد.\n"
+        f"🏢 صاحبکار: {employer}\n"
+        f"💰 حقوق ساعتی: {money(hourly_salary)}\n"
+        "⏱️ از همین حالا ساعت کاری شروع شد!"
+    )
 
 
 def job_apply_error(message: str) -> str:
     return f"❌ {message}"
 
 
-def job_work_success(income: int, balance_after: int) -> str:
-    return (
-        "کار انجام شد.\n"
-        f"💰 درآمد: {money(income)}\n"
-        f"💳 موجودی فعلی: {money(balance_after)}"
-    )
+def settlement_text(result: SettlementResult) -> str:
+    """Render the outcome of settling accounts with the employer."""
+    lines = [
+        f"💼 تسویه حساب با {result.employer}",
+        "━━━━━━━━━━━━━━━",
+        f"👔 شغل: {result.job_name}",
+        f"⏱️ مدت کار: {_format_duration(result.worked_minutes)}",
+        f"💰 حقوق ساعتی: {money(result.hourly_salary)}",
+        f"🧮 حقوق ناخالص: {money(result.gross_salary)}",
+    ]
 
+    if result.event_type == "bonus":
+        lines.append(
+            f"🎉 پاداش {fa_int(result.bonus_percent or 0)}٪: +{money(result.bonus_amount)}"
+        )
+    elif result.event_type == "mistake":
+        lines.append(
+            f"⚠️ جریمه {fa_int(result.penalty_percent or 0)}٪: -{money(result.penalty_amount)}"
+        )
 
-def job_work_cooldown(remaining_seconds: int) -> str:
-    minutes = remaining_seconds // 60
-    seconds = remaining_seconds % 60
-    if minutes > 0 and seconds > 0:
-        time_str = f"{fa_int(minutes)} دقیقه و {fa_int(seconds)} ثانیه"
-    elif minutes > 0:
-        time_str = f"{fa_int(minutes)} دقیقه"
+    if result.status == "delayed":
+        lines.append("")
+        lines.append("⏳ صاحبکار پرداخت رو عقب انداخت! 😤")
+        lines.append("فعلاً پولی دریافت نکردی؛ یه‌کم بعد دوباره تسویه کن.")
     else:
-        time_str = f"{fa_int(seconds if seconds > 0 else 1)} ثانیه"
+        lines.append("")
+        lines.append("✅ پرداخت انجام شد.")
+        lines.append(f"💸 مبلغ دریافتی: {money(result.final_amount)}")
+        lines.append(f"💳 موجودی فعلی: {money(result.balance_after)}")
 
+    return "\n".join(lines)
+
+
+def job_settle_too_early() -> str:
     return (
-        "هنوز زمان کار نرسیده.\n"
-        f"⏳ زمان باقی‌مانده: {time_str}"
+        "هنوز حتی یک دقیقه هم از شروع کارت نگذشته! ⏱️\n"
+        "کمی کار کن و بعد دوباره تسویه کن."
     )
 
 
@@ -93,14 +127,28 @@ def job_leave_success(job_name: str, total_earnings: int) -> str:
     )
 
 
-def job_history_text(histories: list[JobHistoryData]) -> str:
-    if not histories:
-        return "تاریخچه درآمد خالیه."
+_EVENT_LABELS = {
+    "normal": "پرداخت عادی",
+    "bonus": "پرداخت با پاداش",
+    "mistake": "پرداخت با جریمه",
+    "delayed": "تأخیر در پرداخت",
+}
 
-    lines = [f"📜 تاریخچه درآمد (آخرین {len(histories)}):\n"]
-    for h in histories:
+
+def salary_events_text(events: list[JobEventData]) -> str:
+    if not events:
+        return "هنوز هیچ رویداد تسویه‌ای ثبت نشده."
+
+    lines = [f"📜 تاریخچه تسویه‌حساب‌ها (آخرین {len(events)}):\n"]
+    for e in events:
+        label = _EVENT_LABELS.get(e.event_type, e.event_type)
+        if e.status == "delayed":
+            amount = f"⏳ عقب‌افتاده ({money(e.gross_salary)})"
+        else:
+            amount = money(e.final_amount)
         lines.append(
-            f"• {h.job_name}: {money(h.income)} - {h.created_at.strftime('%Y-%m-%d %H:%M')}"
+            f"• {e.employer}: {label} — {amount} — "
+            f"{e.created_at.strftime('%Y-%m-%d %H:%M')}"
         )
     return "\n".join(lines)
 

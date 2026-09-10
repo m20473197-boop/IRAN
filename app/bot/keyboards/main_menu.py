@@ -48,9 +48,9 @@ def build_back_to_main() -> InlineKeyboardMarkup:
 
 BUTTON_JOBS_LIST: str = "📋 لیست شغل‌ها"
 BUTTON_JOBS_MY_JOB: str = "👔 شغل من"
-BUTTON_JOBS_WORK: str = "🔨 کار"
+BUTTON_JOBS_SETTLE: str = "💰 تسویه با صاحبکار"
 BUTTON_JOBS_LEAVE: str = "🚪 ترک شغل"
-BUTTON_JOBS_HISTORY: str = "📜 تاریخچه درآمد"
+BUTTON_JOBS_HISTORY: str = "📜 تاریخچه تسویه‌ها"
 
 
 def build_jobs_menu() -> InlineKeyboardMarkup:
@@ -66,7 +66,9 @@ def build_jobs_menu() -> InlineKeyboardMarkup:
                 ),
             ],
             [
-                InlineKeyboardButton(BUTTON_JOBS_WORK, callback_data=callbacks.JOBS_WORK),
+                InlineKeyboardButton(
+                    BUTTON_JOBS_SETTLE, callback_data=callbacks.JOBS_SETTLE
+                ),
                 InlineKeyboardButton(
                     BUTTON_JOBS_LEAVE, callback_data=callbacks.JOBS_LEAVE
                 ),
@@ -90,7 +92,9 @@ def build_jobs_list(jobs) -> InlineKeyboardMarkup:
     rows = []
     for job in jobs:
         # job is JobData
-        btn_text = f"{job.name} - {job.salary:,} تومان (لول {job.required_level})"
+        btn_text = (
+            f"{job.name} - {job.hourly_salary:,} تومان/ساعت (لول {job.required_level})"
+        )
         # Use callback with job id
         rows.append(
             [
