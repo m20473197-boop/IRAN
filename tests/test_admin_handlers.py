@@ -568,8 +568,13 @@ async def test_disabled_features_hide_and_deny(services, register, tg_env):
 
 
 async def test_registration_counts_toward_handler_wiring():
-    """The panel routes (/admin, conversation, router) are all registered."""
-    from telegram.ext import ApplicationBuilder, CallbackQueryHandler, CommandHandler
+    """The panel routes (پنل trigger, conversation, router) are all registered."""
+    from telegram.ext import (
+        ApplicationBuilder,
+        CallbackQueryHandler,
+        CommandHandler,
+        MessageHandler,
+    )
 
     application = ApplicationBuilder().token("123456:ABC-test").build()
     try:
@@ -578,7 +583,13 @@ async def test_registration_counts_toward_handler_wiring():
         register_handlers(application)
         handlers = application.handlers[0]
         assert any(
-            isinstance(h, CommandHandler) and "admin" in h.commands for h in handlers
+            isinstance(h, MessageHandler)
+            and h.callback is admin_panel.admin_command
+            for h in handlers
+        )
+        assert not any(
+            isinstance(h, CommandHandler) and "admin" in h.commands
+            for h in handlers
         )
         assert any(
             type(h).__name__ == "ConversationHandler"

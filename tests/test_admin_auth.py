@@ -1,4 +1,4 @@
-"""Admin authentication, input parsing, /admin access and the ban guard."""
+"""Admin authentication, input parsing, پنل access and the ban guard."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def make_user(tg_id: int) -> User:
     return User(id=tg_id, first_name="Test", is_bot=False, username="test")
 
 
-def make_message_update(user: User, text: str = "/admin") -> Update:
+def make_message_update(user: User, text: str = "پنل") -> Update:
     message = Message(
         message_id=1, date=datetime.now(), chat=Chat(id=user.id, type=Chat.PRIVATE),
         from_user=user, text=text,
@@ -114,7 +114,7 @@ def test_parse_admin_float_rejects_garbage():
     assert parse_admin_float("") is None
 
 
-# --- /admin command ------------------------------------------------------------------
+# --- پنل trigger --------------------------------------------------------------------
 
 async def test_admin_command_opens_panel_for_admin(services, monkeypatch):
     reply_mock = AsyncMock()
@@ -144,6 +144,63 @@ async def test_admin_command_blocks_non_admin(services, monkeypatch):
 
     assert result == ConversationHandler.END
     assert "ادمین" in reply_mock.await_args.args[0]
+
+
+def _panel_opener():
+    """Return the registered handler that opens the admin panel."""
+    from telegram.ext import ApplicationBuilder, MessageHandler
+
+    from app.bot.handlers import register_handlers
+
+    application = ApplicationBuilder().token("123456:ABC-test").build()
+    register_handlers(application)
+    for handler in application.handlers[0]:
+        if (
+            isinstance(handler, MessageHandler)
+            and handler.callback is admin_panel.admin_command
+        ):
+            return handler
+    raise AssertionError("no registered handler opens the admin panel")
+
+
+async def test_panel_text_trigger_opens_panel_for_admin(services, monkeypatch):
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply_text", reply_mock)
+
+    opener = _panel_opener()
+    update = make_message_update(make_user(ADMIN_ID), text="پنل")
+    assert opener.check_update(update)
+
+    result = await opener.callback(update, make_context(services))
+
+    assert result == ConversationHandler.END
+    assert "پنل مدیریت" in reply_mock.await_args.args[0]
+
+
+async def test_panel_text_trigger_blocks_normal_user(services, monkeypatch):
+    reply_mock = AsyncMock()
+    monkeypatch.setattr(Message, "reply_text", reply_mock)
+
+    opener = _panel_opener()
+    update = make_message_update(make_user(999), text="پنل")
+    assert opener.check_update(update)
+
+    result = await opener.callback(update, make_context(services))
+
+    assert result == ConversationHandler.END
+    assert "ادمین" in reply_mock.await_args.args[0]
+
+
+async def test_old_admin_slash_command_is_gone():
+    from telegram.ext import ApplicationBuilder, CommandHandler
+
+    from app.bot.handlers import register_handlers
+
+    application = ApplicationBuilder().token("123456:ABC-test").build()
+    register_handlers(application)
+    for handler in application.handlers[0]:
+        if isinstance(handler, CommandHandler):
+            assert "admin" not in handler.commands
 
 
 async def test_admin_router_blocks_non_admin(services, monkeypatch):

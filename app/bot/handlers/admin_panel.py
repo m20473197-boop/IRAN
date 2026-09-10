@@ -42,6 +42,9 @@ ADMIN_INPUT: int = 1
 
 PENDING_KEY: str = "adm_pending"
 
+# Text message that opens the admin panel (admins only).
+ADMIN_PANEL_TEXT_TRIGGER: str = "پنل"
+
 _KITCHEN_OPTIONS = ("مدرن", "معمولی", "قدیمی")
 _QUALITY_OPTIONS = ("عالی", "خوب", "متوسط", "ضعیف")
 
@@ -119,12 +122,12 @@ def _parse_id(raw: str) -> int | None:
 # --- /admin command ---------------------------------------------------------------
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Open the admin panel (``/admin``) — admins only."""
+    """Open the admin panel (``پنل``) — admins only."""
     if update.message is None or update.effective_user is None:
         return ConversationHandler.END
     if not _is_admin(update, context):
         logger.warning(
-            "Unauthorized /admin attempt by user %s", update.effective_user.id
+            "Unauthorized admin-panel attempt by user %s", update.effective_user.id
         )
         await update.message.reply_text(admin_messages.NOT_ADMIN)
         return ConversationHandler.END

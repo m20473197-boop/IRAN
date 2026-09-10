@@ -32,10 +32,17 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("admin_status", admin.admin_status))
     application.add_handler(CommandHandler("admin_xp_history", admin.admin_xp_history))
 
-    # Admin panel: /admin opens it; one conversation carries every typed
-    # admin value (amounts, names, settings). Registered FIRST in group 0 so
-    # a pending admin input always wins over the feature text triggers.
-    application.add_handler(CommandHandler("admin", admin_panel.admin_command))
+    # Admin panel: the "پنل" message opens it; one conversation carries every
+    # typed admin value (amounts, names, settings). Registered FIRST in
+    # group 0 so a pending admin input always wins over the feature text
+    # triggers.
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT
+            & filters.Regex(f"^{admin_panel.ADMIN_PANEL_TEXT_TRIGGER}$"),
+            admin_panel.admin_command,
+        )
+    )
     application.add_handler(
         ConversationHandler(
             entry_points=[
@@ -57,7 +64,8 @@ def register_handlers(application: Application) -> None:
                 ],
             },
             fallbacks=[
-                CommandHandler("admin", admin_panel.admin_command),
+                # No text fallback: "پنل" is plain TEXT, so mid-conversation
+                # it is (correctly) treated as the pending input value.
                 CallbackQueryHandler(
                     admin_panel.admin_input_cancel,
                     pattern=rf"^{callbacks.ADM_IN_CANCEL}$",
