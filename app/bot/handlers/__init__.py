@@ -27,9 +27,6 @@ def register_handlers(application: Application) -> None:
 
     # Job system — text messages
     application.add_handler(
-        MessageHandler(filters.TEXT & filters.Regex(f"^{job.WORK_TEXT_TRIGGER}$"), job.work_text_handler)
-    )
-    application.add_handler(
         MessageHandler(filters.TEXT & filters.Regex(f"^{job.JOBS_TEXT_TRIGGER}$"), job.jobs_text_handler)
     )
     application.add_handler(
@@ -57,7 +54,7 @@ def register_handlers(application: Application) -> None:
         CallbackQueryHandler(job.show_my_job, pattern=rf"^{callbacks.JOBS_MY_JOB}$")
     )
     application.add_handler(
-        CallbackQueryHandler(job.work_job_callback, pattern=rf"^{callbacks.JOBS_WORK}$")
+        CallbackQueryHandler(job.settle_job_callback, pattern=rf"^{callbacks.JOBS_SETTLE}$")
     )
     application.add_handler(
         CallbackQueryHandler(job.leave_job_callback, pattern=rf"^{callbacks.JOBS_LEAVE}$")

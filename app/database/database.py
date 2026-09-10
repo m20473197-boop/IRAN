@@ -23,6 +23,18 @@ from app.database.models.base import Base
 _SQLITE_PREFIX = "sqlite"
 _MEMORY_MARKER = ":memory:"
 
+# Additive column migrations for existing SQLite databases. ``create_all`` only
+# creates *missing tables* — it never alters existing ones — so when a model
+# gains a column we must backfill it with an idempotent ``ALTER TABLE ... ADD
+# COLUMN``. Keys are table names; values are (column_name, column_definition).
+_SQLITE_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
+    # The time-based salary system added these to the existing jobs table.
+    "jobs": [
+        ("hourly_salary", "BIGINT NOT NULL DEFAULT 0"),
+        ("employer", "VARCHAR(64) NOT NULL DEFAULT ''"),
+    ],
+}
+
 
 class Database:
     """Owns the async engine and the session factory for the whole app."""
@@ -48,13 +60,37 @@ class Database:
         return self._engine
 
     async def create_all(self) -> None:
-        """Create any missing tables.
+        """Create any missing tables and apply additive column migrations.
 
         Existing tables and rows are never dropped or recreated, so player
         data safely survives bot restarts.
         """
         async with self._engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
+        if self._database_url.startswith(_SQLITE_PREFIX):
+            await self._add_missing_columns()
+
+    async def _add_missing_columns(self) -> None:
+        """Backfill new columns on existing SQLite tables (idempotent)."""
+        async with self._engine.begin() as connection:
+            for table_name, columns in _SQLITE_COLUMN_MIGRATIONS.items():
+                existing = {
+                    row[1]
+                    for row in (
+                        await connection.exec_driver_sql(
+                            f"PRAGMA table_info({table_name})"
+                        )
+                    ).fetchall()
+                }
+                if not existing:
+                    continue  # Table does not exist yet — create_all handles it.
+                for column_name, column_ddl in columns:
+                    if column_name in existing:
+                        continue
+                    await connection.exec_driver_sql(
+                        f"ALTER TABLE {table_name} "
+                        f"ADD COLUMN {column_name} {column_ddl}"
+                    )
 
     async def dispose(self) -> None:
         """Close all connections (called on shutdown)."""

@@ -1,5 +1,6 @@
 """Repositories package — the only layer that talks to the database."""
 
+from app.database.repositories.job_event_repository import JobEventRepository
 from app.database.repositories.job_history_repository import JobHistoryRepository
 from app.database.repositories.job_repository import JobRepository
 from app.database.repositories.level_up_repository import LevelUpRepository
@@ -16,4 +17,5 @@ __all__ = [
     "JobRepository",
     "PlayerJobRepository",
     "JobHistoryRepository",
+    "JobEventRepository",
 ]

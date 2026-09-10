@@ -39,15 +39,35 @@ class PlayerJobRepository:
         player_id: int,
         job_id: int,
         total_earnings: int = 0,
+        started_at: datetime | None = None,
     ) -> PlayerJob:
         record = PlayerJob(
             player_id=player_id,
             job_id=job_id,
             total_earnings=total_earnings,
+            started_at=started_at,
         )
         self._session.add(record)
         await self._session.flush()
         return record
+
+    async def settle(
+        self, player_id: int, timestamp: datetime, earnings_to_add: int = 0
+    ) -> bool:
+        """Reset the work timer after a settlement and accrue paid earnings."""
+        stmt = (
+            update(PlayerJob)
+            .where(PlayerJob.player_id == player_id)
+            .values(
+                started_at=timestamp,
+                last_work_time=timestamp,
+                total_earnings=PlayerJob.total_earnings + earnings_to_add,
+            )
+        )
+        result = await self._session.execute(
+            stmt, execution_options={"synchronize_session": False}
+        )
+        return bool(result.rowcount)
 
     async def update_last_work_time(
         self, player_id: int, timestamp: datetime, earnings_to_add: int = 0
