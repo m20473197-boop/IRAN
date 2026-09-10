@@ -12,6 +12,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.bot.context import get_services
+from app.bot.handlers.guards import requires_feature
 from app.bot.keyboards import (
     build_back_to_main,
     build_buy_confirmation,
@@ -108,6 +109,7 @@ def _error_text(exc: DomainError) -> str:
 # --- Menu ------------------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_housing_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.HOUSING_MENU:
@@ -119,6 +121,7 @@ async def show_housing_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # --- Lists ------------------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_my_houses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.HOUSES_MY:
@@ -152,6 +155,7 @@ async def show_my_houses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+@requires_feature("housing")
 async def show_market(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.HOUSES_MARKET:
@@ -170,6 +174,7 @@ async def show_market(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await _edit(query, housing_messages.market_text(entries), build_market_list(entries))
 
 
+@requires_feature("housing")
 async def show_rentals(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.HOUSES_RENTALS:
@@ -188,6 +193,7 @@ async def show_rentals(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await _edit(query, housing_messages.rentals_text(entries), build_rentals_list(entries))
 
 
+@requires_feature("housing")
 async def show_my_rents(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.HOUSES_MY_RENTS:
@@ -217,6 +223,7 @@ async def show_my_rents(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # --- House information --------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_house_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.HOUSE_INFO_PREFIX):
@@ -254,6 +261,7 @@ async def show_house_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # --- Buying ---------------------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_buy_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.HOUSE_BUY_PREFIX):
@@ -283,6 +291,7 @@ async def show_buy_confirmation(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
+@requires_feature("housing")
 async def confirm_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Execute the purchase (market or player listing — service decides)."""
     query = update.callback_query
@@ -329,6 +338,7 @@ async def confirm_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # --- Selling (owner side) ---------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_sale_options(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.HOUSE_SELL_OPTIONS_PREFIX):
@@ -358,6 +368,7 @@ async def show_sale_options(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     )
 
 
+@requires_feature("housing")
 async def confirm_sell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List the house at the chosen preset price (per-mille of market value)."""
     query = update.callback_query
@@ -401,6 +412,7 @@ async def confirm_sell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+@requires_feature("housing")
 async def cancel_sale(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.HOUSE_SELL_CANCEL_PREFIX):
@@ -438,6 +450,7 @@ async def cancel_sale(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # --- Renting out (owner side) --------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_rentout_options(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.HOUSE_RENTOUT_OPTIONS_PREFIX):
@@ -467,6 +480,7 @@ async def show_rentout_options(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
+@requires_feature("housing")
 async def confirm_rent_out(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List the house for rent with the chosen deposit preset."""
     query = update.callback_query
@@ -520,6 +534,7 @@ async def confirm_rent_out(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     )
 
 
+@requires_feature("housing")
 async def cancel_rent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.HOUSE_RENT_CANCEL_PREFIX):
@@ -557,6 +572,7 @@ async def cancel_rent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # --- Renting (tenant side) ------------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def show_rent_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.RENT_CONFIRM_PREFIX):
@@ -591,6 +607,7 @@ async def show_rent_confirmation(update: Update, context: ContextTypes.DEFAULT_T
     )
 
 
+@requires_feature("housing")
 async def confirm_rent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sign the rental contract (pays the deposit, creates the contract)."""
     query = update.callback_query
@@ -630,6 +647,7 @@ async def confirm_rent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+@requires_feature("housing")
 async def pay_rent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.RENT_PAY_PREFIX):
@@ -664,6 +682,7 @@ async def pay_rent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+@requires_feature("housing")
 async def end_rent_contract(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.RENT_END_PREFIX):
@@ -701,6 +720,7 @@ async def end_rent_contract(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # --- Text triggers ---------------------------------------------------------------------------
 
 
+@requires_feature("housing")
 async def housing_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle «خانه» / «مسکن» — open the housing menu."""
     if update.message is None or update.effective_user is None:

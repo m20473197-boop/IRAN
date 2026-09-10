@@ -28,7 +28,9 @@ class Land(Base):
     The market value is intentionally **not stored**: it is recomputed
     dynamically from city, neighborhood, size and the live market conditions
     (see ``app/game/realestate/land_pricing.py``), so economic changes move
-    every parcel's value automatically.
+    every parcel's value automatically. ``price_override_per_mille`` is the
+    only exception: when an admin sets it, the services scale the dynamic
+    value by it; ``None`` (the default) means a purely dynamic price.
     """
 
     __tablename__ = "lands"
@@ -51,6 +53,10 @@ class Land(Base):
         BigInteger,
         ForeignKey("houses.id", ondelete="SET NULL"),
         nullable=True,
+    )
+
+    price_override_per_mille: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
     )
 
     created_at: Mapped[datetime] = mapped_column(

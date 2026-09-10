@@ -47,6 +47,7 @@ from app.database.repositories.renovation_project_repository import (
 from app.database.repositories.rental_contract_repository import (
     RentalContractRepository,
 )
+from app.game.admin import runtime as admin_runtime
 from app.game.housing import pricing
 from app.game.housing.dto import HouseData
 from app.game.realestate import construction as construction_domain
@@ -162,6 +163,7 @@ class RealEstateService:
             built_house_id=land.built_house_id,
             created_at=land.created_at,
             updated_at=land.updated_at,
+            price_override_per_mille=land.price_override_per_mille,
         )
 
     @staticmethod
@@ -175,14 +177,23 @@ class RealEstateService:
 
     def estimate_land_value(self, land: Land) -> int:
         """Live dynamic market value of a parcel (exact integer Toman)."""
-        return estimate_land_price(self._land_pricing_input(land))
+        value = estimate_land_price(self._land_pricing_input(land))
+        override = land.price_override_per_mille
+        if override:
+            value = max(1, value * int(override) // 1000)
+        return value
 
     @staticmethod
     def house_value(house: House | HouseData) -> int:
         """Live dynamic market value of a house (via the housing engine)."""
-        return pricing.estimate_house_price(
-            HousingService.pricing_input_for_house(house)
+        value = pricing.estimate_house_price(
+            HousingService.pricing_input_for_house(house),
+            market_factor=admin_runtime.effective_market_factor(),
         )
+        override = getattr(house, "price_override_per_mille", None)
+        if override:
+            value = max(1, value * int(override) // 1000)
+        return value
 
     @staticmethod
     def house_label(house: House | HouseData) -> str:
@@ -930,10 +941,10 @@ class RealEstateService:
         if self._level_service is None:
             return 0
         amount = max(
-            constants.HOUSING_PURCHASE_XP_MIN,
+            admin_runtime.purchase_xp_min(),
             min(
-                constants.HOUSING_PURCHASE_XP_MAX,
-                cost // constants.CONSTRUCTION_XP_DIVISOR,
+                admin_runtime.purchase_xp_max(),
+                cost // admin_runtime.construction_xp_divisor(),
             ),
         )
         try:

@@ -14,6 +14,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.bot.context import get_services
+from app.bot.handlers.guards import requires_feature
 from app.bot.keyboards import build_back_to_main, callbacks
 from app.bot.keyboards.realestate import (
     build_construction_confirmation,
@@ -113,6 +114,7 @@ async def _settle_and_answer(query, services) -> int | None:
 # --- Land market -------------------------------------------------------------------
 
 
+@requires_feature("realestate")
 async def show_lands_market(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.RE_LANDS_MARKET:
@@ -124,6 +126,7 @@ async def show_lands_market(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await _edit(query, re_messages.lands_market_text(entries), build_lands_market(entries))
 
 
+@requires_feature("realestate")
 async def show_land_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.RE_LAND_INFO_PREFIX):
@@ -146,6 +149,7 @@ async def show_land_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+@requires_feature("realestate")
 async def show_land_buy_confirmation(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -175,6 +179,7 @@ async def show_land_buy_confirmation(
     )
 
 
+@requires_feature("realestate")
 async def confirm_land_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.RE_LAND_BUY_OK_PREFIX):
@@ -212,6 +217,7 @@ async def confirm_land_buy(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # --- My lands -------------------------------------------------------------------------
 
 
+@requires_feature("realestate")
 async def show_my_lands(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.RE_LANDS_MY:
@@ -245,6 +251,7 @@ def _vacant_lands(assets) -> list[LandWithStatus]:
     ]
 
 
+@requires_feature("realestate")
 async def show_build_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.RE_BUILD_MENU:
@@ -286,6 +293,7 @@ def _spec_step_callback(land_id: int, *parts: object) -> str:
     return f"{callbacks.RE_BUILD_SPEC_PREFIX}{land_id}{'_' + joined if joined else ''}"
 
 
+@requires_feature("realestate")
 async def show_build_type_picker(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -341,6 +349,7 @@ def _parse_build_spec(payload: str) -> tuple[int, str, int, int, int, str] | Non
     return land_id, building_type, floors, size, bedrooms, quality
 
 
+@requires_feature("realestate")
 async def show_build_step(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Steps 2–6 — dispatched by how much blueprint is already chosen."""
     query = update.callback_query
@@ -505,6 +514,7 @@ def _parse_full_blueprint(payload: str):
     return spec
 
 
+@requires_feature("realestate")
 async def show_construction_confirmation(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -545,6 +555,7 @@ async def show_construction_confirmation(
     )
 
 
+@requires_feature("realestate")
 async def confirm_construction(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -584,6 +595,7 @@ async def confirm_construction(
     )
 
 
+@requires_feature("realestate")
 async def cancel_construction(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -623,6 +635,7 @@ async def cancel_construction(
 # --- Construction / renovation status ------------------------------------------------------
 
 
+@requires_feature("realestate")
 async def show_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.RE_STATUS:
@@ -648,6 +661,7 @@ async def show_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # --- Renovation ------------------------------------------------------------------------------
 
 
+@requires_feature("realestate")
 async def show_renov_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.RE_RENOV_MENU:
@@ -668,6 +682,7 @@ async def show_renov_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
+@requires_feature("realestate")
 async def show_renovation_options(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -714,6 +729,7 @@ def _parse_renov_payload(payload: str) -> tuple[int, str] | None:
     return int(match.group(1)), match.group(2)
 
 
+@requires_feature("realestate")
 async def show_renovation_confirmation(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -754,6 +770,7 @@ async def show_renovation_confirmation(
     )
 
 
+@requires_feature("realestate")
 async def confirm_renovation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.RE_RENOV_OK_PREFIX):
@@ -794,6 +811,7 @@ async def confirm_renovation(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # --- Text triggers --------------------------------------------------------------------------
 
 
+@requires_feature("realestate")
 async def lands_my_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.effective_user is None:
         return
@@ -811,6 +829,7 @@ async def lands_my_text_handler(update: Update, context: ContextTypes.DEFAULT_TY
     )
 
 
+@requires_feature("realestate")
 async def lands_market_text_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -829,6 +848,7 @@ async def lands_market_text_handler(
     )
 
 
+@requires_feature("realestate")
 async def build_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.effective_user is None:
         return
@@ -848,6 +868,7 @@ async def build_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
+@requires_feature("realestate")
 async def status_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message is None or update.effective_user is None:
         return
@@ -865,6 +886,7 @@ async def status_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
+@requires_feature("realestate")
 async def renovate_text_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:

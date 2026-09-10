@@ -3,10 +3,11 @@
 A multiplayer **life-simulation game** running as a **Telegram Bot**, inspired
 by real life in Iran — casual, humorous and friendly. This repository contains
 the clean, scalable foundation plus the **Job and Income System**, the
-**Housing and Real-Estate System** and the **Land, Construction and Renovation
-System**: players, main menu, profile, status, level/XP, wallet, a time-based
-salary job system, a full housing market with dynamic prices, land trading,
-time-based construction and renovations that raise property value. Future
+**Housing and Real-Estate System**, the **Land, Construction and Renovation
+System** and the **Admin Panel**: players, main menu, profile, status,
+level/XP, wallet, a time-based salary job system, a full housing market with
+dynamic prices, land trading, time-based construction and renovations that
+raise property value, and a button-driven admin console to run the game. Future
 systems (education, vehicles, markets, ...) will be built on top of this base
 step by step.
 
@@ -108,7 +109,10 @@ upgrade of old databases) and the **complete Land, Construction and
 Renovation system** (dynamic land pricing, buying land, the full
 button-driven construction wizard, progress and completion, house creation,
 renovation options and value increases, cancellations with refunds, the
-economy knob and schema upgrades) — **240 tests**.
+economy knob and schema upgrades), the **complete Admin Panel** (auth guard,
+ban enforcement, Persian-number parsing, dashboard, users, economy, real
+estate, jobs, trading, settings, database tools and logs — **113 tests**) —
+**365 tests**.
 
 ## Basic Project Structure
 
@@ -116,7 +120,7 @@ economy knob and schema upgrades) — **240 tests**.
 iran_life_bot/
 ├── app/
 │   ├── bot/                     # Telegram layer (and nothing else)
-│   │   ├── handlers/            #   start, jobs, housing, land/construction, error handler
+│   │   ├── handlers/            #   start, jobs, housing, land/construction, admin panel, error handler
 │   │   ├── keyboards/           #   inline keyboard builders + callback ids
 │   │   ├── messages/            #   ALL player-facing Persian texts
 │   │   ├── middleware/          #   cross-cutting update processing
@@ -134,6 +138,7 @@ iran_life_bot/
 │   │   ├── player/              # pure domain: progression math, DTOs
 │   │   ├── housing/             # pure domain: city catalog, dynamic pricing, DTOs
 │   │   ├── realestate/          # pure domain: land pricing, construction, renovation
+│   │   ├── admin/               # pure domain: runtime knobs, Persian-number parsing, DTOs
 │   │   └── shared/              # shared domain errors
 │   └── services/                # business logic + transaction boundaries
 ├── tests/                       # pytest suite
@@ -321,12 +326,49 @@ constructions and renovations settle lazily whenever any related screen is
 opened (atomic, race-safe) — a future scheduler can also call
 ``RealEstateService.settle_due()`` periodically.
 
+## Admin Panel 🛡️
+
+The `/admin` command opens a fully **button-driven control console** for the
+game's administrators (default: Telegram ID `8154313073`). Everyone else is
+blocked with a polite message, and a middleware layer stops every update from
+banned players with a short notice before any handler runs.
+
+* **📊 Dashboard** — live stats: total/active/banned users, money in
+  circulation, houses, lands, jobs, active listings/contracts/rentals, the
+  live market factor and the server/database health.
+* **👥 Users** — paged list, search (by ID / username / name), full profile,
+  transactions and properties; add/remove money, add/remove XP, set level,
+  ban/unban. Persian digits and suffixes (k/m/B, میلیون/میلیارد) are parsed.
+* **💰 Economy** — inflation rate, base market conditions, currency/gold/
+  crypto assets with price history, timed economic events and a one-tap
+  crisis preset. The **effective market factor** (base × events) drives all
+  house, land, construction and renovation prices live.
+* **🏠 Real estate** — every house/land with edit screens (area, city,
+  construction year, facilities, quality, location, per-property price
+  override), active sale listings (close/remove) and rental contracts
+  (terminate).
+* **💼 Jobs** — create jobs through a guided 6-step flow, edit salary/level/
+  employer, enable/disable jobs, watch active workers.
+* **📈 Trading** — market activity, sale history and rental volume (a full
+  trading exchange stays a future system; the read-side scaffold is ready).
+* **⚙️ Settings** — XP reward bounds/divisors, minimum settle minutes and
+  **feature flags** that instantly enable/disable the jobs and housing
+  systems (menus hide them automatically).
+* **🗄️ Database tools** — stats, one-tap backups (also sent as a file),
+  restore with a confirm step, and safe cleanup of old listings/audit
+  rows/price ticks.
+* **📋 Logs** — the immutable admin-audit trail (who did what, when),
+  user/economy/land/DB action views and the recent error log.
+
+The admin code follows the same architecture (handlers → `AdminService` →
+repositories); every money/XP mutation reuses the existing atomic services,
+and old databases are upgraded additively (no rows dropped).
+
 ## What is intentionally NOT in this stage
 
 Education, skills, vehicles, marriage, businesses, loans, investments,
-markets, inflation, trading, crime, police, prisons, bankruptcy, crises and
-similar systems are **not implemented** — the architecture is simply prepared
-for them.
+markets, a trading exchange, crime, police, prisons and bankruptcy are **not
+implemented** — the architecture is simply prepared for them.
 
 ## Useful Commands
 

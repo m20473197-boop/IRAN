@@ -43,6 +43,7 @@ from app.database.repositories.player_repository import PlayerRepository
 from app.database.repositories.rental_contract_repository import (
     RentalContractRepository,
 )
+from app.game.admin import runtime as admin_runtime
 from app.game.housing import pricing
 from app.game.housing.dto import (
     EndContractResult,
@@ -163,6 +164,7 @@ class HousingService:
             owner_player_id=house.owner_player_id,
             created_at=house.created_at,
             updated_at=house.updated_at,
+            price_override_per_mille=house.price_override_per_mille,
         )
 
     @staticmethod
@@ -185,16 +187,26 @@ class HousingService:
 
     def estimate_value(self, house: House) -> int:
         """Dynamic market value of a house (exact integer Toman)."""
-        return pricing.estimate_house_price(self.pricing_input_for_house(house))
+        value = pricing.estimate_house_price(
+            self.pricing_input_for_house(house),
+            market_factor=admin_runtime.effective_market_factor(),
+        )
+        override = house.price_override_per_mille
+        if override:
+            value = max(1, value * int(override) // 1000)
+        return value
 
     def estimate_rent(self, house: House) -> int:
         """Dynamic suggested monthly rent (no deposit) for a house."""
-        return pricing.estimate_monthly_rent(self.pricing_input_for_house(house))
+        return pricing.estimate_monthly_rent(
+            self.pricing_input_for_house(house),
+            market_factor=admin_runtime.effective_market_factor(),
+        )
 
     @staticmethod
     def _xp_for_price(price: int) -> int:
-        xp = price // constants.HOUSING_PURCHASE_XP_DIVISOR
-        return max(constants.HOUSING_PURCHASE_XP_MIN, min(constants.HOUSING_PURCHASE_XP_MAX, xp))
+        xp = price // admin_runtime.purchase_xp_divisor()
+        return max(admin_runtime.purchase_xp_min(), min(admin_runtime.purchase_xp_max(), xp))
 
     async def _grant_purchase_xp(self, player_id: int, price: int) -> int:
         """Grant XP for a purchase via the existing LevelService (explicit)."""

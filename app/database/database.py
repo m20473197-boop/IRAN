@@ -37,6 +37,17 @@ _SQLITE_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
         ("hourly_salary", "BIGINT NOT NULL DEFAULT 0"),
         ("employer", "VARCHAR(64) NOT NULL DEFAULT ''"),
     ],
+    # The admin panel added the ban flag to players and per-property price
+    # overrides (per-mille scale factors, NULL = purely dynamic price).
+    "players": [
+        ("is_banned", "BOOLEAN NOT NULL DEFAULT 0"),
+    ],
+    "houses": [
+        ("price_override_per_mille", "INTEGER"),
+    ],
+    "lands": [
+        ("price_override_per_mille", "INTEGER"),
+    ],
 }
 
 # Column renames for existing SQLite databases: (table, old_name, new_name).

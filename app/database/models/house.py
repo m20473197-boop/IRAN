@@ -35,7 +35,10 @@ class House(Base):
     The price is intentionally **not stored**: it is always computed
     dynamically from the attributes and the market catalog (see
     ``app/game/housing/pricing.py``), so a future live-market feed moves all
-    prices automatically.
+    prices automatically. ``price_override_per_mille`` is the only exception:
+    when an admin sets it (e.g. ``1200`` = 120% of the dynamic value), the
+    services scale the dynamic value by it; ``None`` (the default) means a
+    purely dynamic price.
     """
 
     __tablename__ = "houses"
@@ -66,6 +69,10 @@ class House(Base):
         ForeignKey("players.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+    )
+
+    price_override_per_mille: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
     )
 
     created_at: Mapped[datetime] = mapped_column(

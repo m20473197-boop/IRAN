@@ -54,7 +54,7 @@ def housing_menu_text() -> str:
 
 def house_card(house: HouseData) -> str:
     """The realistic property list of one house."""
-    return (
+    card = (
         f"🏙️ شهر: {house.city}\n"
         f"📍 محله: {house.neighborhood}\n"
         f"📐 متراژ: {fa_int(house.area_sqm)} متر مربع\n"
@@ -68,6 +68,12 @@ def house_card(house: HouseData) -> str:
         f"📦 انباری: {_YES if house.storage else _NO}\n"
         f"{_QUALITY_EMOJI.get(house.quality, '🏠')} کیفیت: {house.quality}"
     )
+    if house.price_override_per_mille:
+        percent = house.price_override_per_mille / 10
+        pretty = f"{percent:.1f}".rstrip("0").rstrip(".")
+        pretty_fa = pretty.translate(str.maketrans("0123456789.", "\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9/"))
+        card += f"\n\U0001f4b9 \u0636\u0631\u06cc\u0628 \u0642\u06cc\u0645\u062a \u0645\u062f\u06cc\u0631\u06cc\u062a\u06cc: \u066a{pretty_fa}"
+    return card
 
 
 def _duration_days(delta_days: int) -> str:

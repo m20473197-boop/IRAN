@@ -51,6 +51,11 @@ def _land_sheet(item: LandWithStatus | LandInfoData) -> str:
         f"📐 مساحت: {fa_int(land.area_sqm)} متر مربع",
         f"⭐ کیفیت موقعیت: {land.location_quality}",
     ]
+    if land.price_override_per_mille:
+        percent = land.price_override_per_mille / 10
+        pretty = f"{percent:.1f}".rstrip("0").rstrip(".")
+        pretty_fa = pretty.translate(str.maketrans("0123456789.", "\u06f0\u06f1\u06f2\u06f3\u06f4\u06f5\u06f6\u06f7\u06f8\u06f9/"))
+        lines.append(f"\U0001f4b9 \u0636\u0631\u06cc\u0628 \u0642\u06cc\u0645\u062a \u0645\u062f\u06cc\u0631\u06cc\u062a\u06cc: \u066a{pretty_fa}")
     return "\n".join(lines)
 
 

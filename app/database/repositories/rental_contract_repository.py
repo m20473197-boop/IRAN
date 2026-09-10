@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.rental_contract import RentalContract
@@ -55,6 +55,25 @@ class RentalContractRepository:
             )
             .order_by(RentalContract.created_at.desc())
         )
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
+    async def count_active(self) -> int:
+        result = await self._session.execute(
+            select(func.count(RentalContract.id)).where(
+                RentalContract.is_active.is_(True)
+            )
+        )
+        return int(result.scalar_one())
+
+    async def list_page(
+        self, offset: int, limit: int, *, active_only: bool = True
+    ) -> list[RentalContract]:
+        """One page of contracts for the admin panel, oldest first."""
+        statement = select(RentalContract).order_by(RentalContract.id)
+        if active_only:
+            statement = statement.where(RentalContract.is_active.is_(True))
+        statement = statement.offset(offset).limit(limit)
         result = await self._session.execute(statement)
         return list(result.scalars().all())
 

@@ -43,6 +43,16 @@ class HouseTransactionRepository:
         result = await self._session.execute(statement)
         return list(result.scalars().all())
 
+    async def list_recent(self, limit: int = 20) -> list[HouseTransaction]:
+        """Most recent housing money movements (admin / trading views)."""
+        statement = (
+            select(HouseTransaction)
+            .order_by(HouseTransaction.id.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
     async def list_by_house(
         self, house_id: int, limit: int = 50
     ) -> list[HouseTransaction]:

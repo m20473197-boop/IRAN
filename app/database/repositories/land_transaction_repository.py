@@ -31,6 +31,16 @@ class LandTransactionRepository:
         result = await self._session.execute(statement)
         return list(result.scalars().all())
 
+    async def list_recent(self, limit: int = 20) -> list[LandTransaction]:
+        """Most recent land money movements (admin / trading views)."""
+        statement = (
+            select(LandTransaction)
+            .order_by(LandTransaction.id.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
     async def list_by_land(self, land_id: int, limit: int = 50) -> list[LandTransaction]:
         statement = (
             select(LandTransaction)

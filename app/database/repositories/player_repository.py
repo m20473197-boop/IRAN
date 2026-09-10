@@ -6,7 +6,9 @@ own the transaction; Telegram handlers never touch this layer directly.
 
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from datetime import datetime
+
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.player import Player
@@ -35,6 +37,72 @@ class PlayerRepository:
         """Return the balance, or ``None`` when the player does not exist."""
         statement = select(Player.money).where(Player.id == player_id)
         return (await self._session.execute(statement)).scalar_one_or_none()
+
+    # --- Admin reads -------------------------------------------------------
+
+    async def list_page(self, offset: int, limit: int) -> list[Player]:
+        """One page of players, oldest first."""
+        statement = select(Player).order_by(Player.id).offset(offset).limit(limit)
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
+    async def count(self) -> int:
+        result = await self._session.execute(select(func.count(Player.id)))
+        return int(result.scalar_one())
+
+    async def count_banned(self) -> int:
+        result = await self._session.execute(
+            select(func.count(Player.id)).where(Player.is_banned.is_(True))
+        )
+        return int(result.scalar_one())
+
+    async def count_active_since(self, since: datetime) -> int:
+        """Players with any activity (row update) at or after ``since``."""
+        result = await self._session.execute(
+            select(func.count(Player.id)).where(Player.updated_at >= since)
+        )
+        return int(result.scalar_one())
+
+    async def sum_money(self) -> int:
+        """Total money in circulation (sum of all wallets)."""
+        result = await self._session.execute(select(func.sum(Player.money)))
+        return int(result.scalar_one() or 0)
+
+    async def search(self, query: str, limit: int = 10) -> list[Player]:
+        """Find players by Telegram ID, username or display name."""
+        cleaned = query.strip().removeprefix("@")
+        if not cleaned:
+            return []
+        conditions = [
+            Player.username.ilike(f"%{cleaned}%"),
+            Player.display_name.ilike(f"%{cleaned}%"),
+        ]
+        if cleaned.lstrip("+-").isdigit():
+            number = int(cleaned)
+            conditions.append(Player.telegram_user_id == number)
+            conditions.append(Player.id == number)
+        statement = (
+            select(Player).where(or_(*conditions)).order_by(Player.id).limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
+    # --- Admin writes ------------------------------------------------------
+
+    async def set_banned(self, player_id: int, banned: bool) -> bool:
+        """Ban or unban a player. Returns ``False`` when missing."""
+        statement = (
+            update(Player).where(Player.id == player_id).values(is_banned=banned)
+        )
+        result = await self._session.execute(
+            statement, execution_options={"synchronize_session": False}
+        )
+        # The UPDATE bypasses the identity map — expire any cached instance
+        # so later reads in this session see the new flag.
+        cached = await self._session.get(Player, player_id)
+        if cached is not None:
+            self._session.expire(cached)
+        return bool(result.rowcount)
 
     # --- Writes ------------------------------------------------------------
 

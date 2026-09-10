@@ -12,6 +12,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from app.core import constants
+
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
 
 _DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///data/iran_life_bot.db"
@@ -67,7 +69,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
     database_url = load_database_url(env_file=env_file)
     log_level = os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO"
     admin_ids_raw = os.getenv("ADMIN_IDS", "").strip()
-    admin_ids = _parse_admin_ids(admin_ids_raw)
+    # Fall back to the canonical owner ID so the panel always has an admin.
+    admin_ids = _parse_admin_ids(admin_ids_raw) or constants.ADMIN_TELEGRAM_IDS
 
     return Settings(
         bot_token=bot_token,

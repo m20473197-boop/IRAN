@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.house_listing import (
@@ -81,6 +81,32 @@ class HouseListingRepository:
         )
         return (await self._session.execute(statement)).scalar() is not None
 
+    # --- Admin reads --------------------------------------------------------
+
+    async def count_active(self, listing_type: str | None = None) -> int:
+        statement = select(func.count(HouseListing.id)).where(
+            HouseListing.status == STATUS_ACTIVE
+        )
+        if listing_type is not None:
+            statement = statement.where(HouseListing.listing_type == listing_type)
+        return int((await self._session.execute(statement)).scalar_one())
+
+    async def list_active_page(
+        self, listing_type: str | None, offset: int, limit: int
+    ) -> list[HouseListing]:
+        """One page of active listings (``None`` = both sale and rent)."""
+        statement = (
+            select(HouseListing)
+            .where(HouseListing.status == STATUS_ACTIVE)
+            .order_by(HouseListing.id)
+            .offset(offset)
+            .limit(limit)
+        )
+        if listing_type is not None:
+            statement = statement.where(HouseListing.listing_type == listing_type)
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
     # --- Writes -----------------------------------------------------------
 
     async def create(
@@ -114,6 +140,18 @@ class HouseListingRepository:
         self._session.add(listing)
         await self._session.flush()
         return True
+
+    async def purge_closed_older_than(self, cutoff: datetime) -> int:
+        """Delete closed listings shut before ``cutoff``; returns rows removed."""
+        statement = delete(HouseListing).where(
+            HouseListing.status == STATUS_CLOSED,
+            HouseListing.closed_at.is_not(None),
+            HouseListing.closed_at < cutoff,
+        )
+        result = await self._session.execute(
+            statement, execution_options={"synchronize_session": False}
+        )
+        return int(result.rowcount or 0)
 
     async def close_active_for_house(self, house_id: int, when: datetime) -> int:
         """Close every active listing on a house; returns how many closed."""

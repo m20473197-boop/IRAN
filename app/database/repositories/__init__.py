@@ -1,7 +1,18 @@
 """Repositories package — the only layer that talks to the database."""
 
+from app.database.repositories.admin_audit_log_repository import (
+    AdminAuditLogRepository,
+)
+from app.database.repositories.bot_setting_repository import BotSettingRepository
 from app.database.repositories.construction_project_repository import (
     ConstructionProjectRepository,
+)
+from app.database.repositories.economic_event_repository import (
+    EconomicEventRepository,
+)
+from app.database.repositories.market_asset_repository import MarketAssetRepository
+from app.database.repositories.market_price_tick_repository import (
+    MarketPriceTickRepository,
 )
 from app.database.repositories.house_listing_repository import (
     HouseListingRepository,
@@ -52,4 +63,9 @@ __all__ = [
     "ConstructionProjectRepository",
     "RenovationProjectRepository",
     "PropertyUpgradeRepository",
+    "AdminAuditLogRepository",
+    "BotSettingRepository",
+    "EconomicEventRepository",
+    "MarketAssetRepository",
+    "MarketPriceTickRepository",
 ]

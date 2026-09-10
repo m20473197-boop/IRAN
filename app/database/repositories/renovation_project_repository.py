@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.renovation_project import (
@@ -24,6 +24,15 @@ class RenovationProjectRepository:
 
     async def get_by_id(self, project_id: int) -> RenovationProject | None:
         return await self._session.get(RenovationProject, project_id)
+
+    async def count_in_progress(self) -> int:
+        """How many renovations are currently running (admin dashboard)."""
+        result = await self._session.execute(
+            select(func.count(RenovationProject.id)).where(
+                RenovationProject.status == STATUS_IN_PROGRESS
+            )
+        )
+        return int(result.scalar_one())
 
     async def get_active_by_house(self, house_id: int) -> RenovationProject | None:
         statement = select(RenovationProject).where(

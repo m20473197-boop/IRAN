@@ -9,6 +9,7 @@ from __future__ import annotations
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.keyboards import callbacks
+from app.game.admin import runtime as admin_runtime
 
 BUTTON_PROFILE: str = "👤 پروفایل"
 BUTTON_STATUS: str = "📊 وضعیت"
@@ -18,21 +19,32 @@ BUTTON_BACK_TO_MAIN: str = "🔙 منوی اصلی"
 
 
 def build_main_menu() -> InlineKeyboardMarkup:
-    """The main menu — only features that actually exist, nothing fake."""
-    return InlineKeyboardMarkup(
+    """The main menu — only features that actually exist, nothing fake.
+
+    Systems the admin switched off in ⚙️ Bot Settings are hidden as well
+    (their handlers refuse access too, so stale buttons stay safe).
+    """
+    rows = [
         [
-            [
-                InlineKeyboardButton(BUTTON_PROFILE, callback_data=callbacks.PROFILE),
-                InlineKeyboardButton(BUTTON_STATUS, callback_data=callbacks.STATUS),
-            ],
+            InlineKeyboardButton(BUTTON_PROFILE, callback_data=callbacks.PROFILE),
+            InlineKeyboardButton(BUTTON_STATUS, callback_data=callbacks.STATUS),
+        ],
+    ]
+    if admin_runtime.feature_enabled("jobs"):
+        rows.append(
             [
                 InlineKeyboardButton(BUTTON_JOBS, callback_data=callbacks.JOBS_MENU),
-            ],
+            ]
+        )
+    if admin_runtime.feature_enabled("housing"):
+        rows.append(
             [
-                InlineKeyboardButton(BUTTON_HOUSING, callback_data=callbacks.HOUSING_MENU),
-            ],
-        ]
-    )
+                InlineKeyboardButton(
+                    BUTTON_HOUSING, callback_data=callbacks.HOUSING_MENU
+                ),
+            ]
+        )
+    return InlineKeyboardMarkup(rows)
 
 
 def build_back_to_main() -> InlineKeyboardMarkup:

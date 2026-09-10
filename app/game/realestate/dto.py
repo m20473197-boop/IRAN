@@ -26,6 +26,7 @@ class LandData:
     built_house_id: int | None
     created_at: datetime
     updated_at: datetime
+    price_override_per_mille: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

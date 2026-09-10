@@ -54,3 +54,64 @@ RE_RENOV_MENU: str = "re_renov"            # بازسازی خانه (pick a hou
 RE_RENOV_OPTS_PREFIX: str = "re_ro_"       # + house_id (renovation options)
 RE_RENOV_CONFIRM_PREFIX: str = "re_rc_"    # + house_id + type (confirm)
 RE_RENOV_OK_PREFIX: str = "re_rk_"         # + house_id + type (starts project)
+
+# Admin panel — every admin screen lives under the ``adm_`` namespace.
+ADM_MENU: str = "adm_menu"
+ADM_DASH: str = "adm_dash"
+# Users
+ADM_UL_PREFIX: str = "adm_ul_"             # + page (user list)
+ADM_U_PREFIX: str = "adm_u_"               # + player_id (user detail)
+ADM_UTX_PREFIX: str = "adm_utx_"           # + player_id (transactions)
+ADM_UPROP_PREFIX: str = "adm_upr_"         # + player_id (houses + lands)
+ADM_BAN_PREFIX: str = "adm_ban_"           # + player_id (ban confirm)
+ADM_BANOK_PREFIX: str = "adm_banok_"       # + player_id (execute ban)
+ADM_UNBAN_PREFIX: str = "adm_unban_"       # + player_id (execute unban)
+# Economy
+ADM_ECON: str = "adm_econ"
+ADM_ASSET_PREFIX: str = "adm_asset_"       # + asset code
+ADM_EVENT_PREFIX: str = "adm_event_"       # + event id
+ADM_EVENT_END_PREFIX: str = "adm_eve_"     # + event id (end early)
+ADM_CRISIS: str = "adm_crisis"             # one-tap crisis confirm screen
+ADM_CRISIS_OK: str = "adm_crisis_ok"       # execute crisis
+# Real estate
+ADM_ESTATE: str = "adm_estate"
+ADM_HL_PREFIX: str = "adm_hl_"             # + page (house list)
+ADM_HD_PREFIX: str = "adm_hd_"             # + house_id (house detail)
+ADM_HE_PREFIX: str = "adm_he_"             # + house_id (house edit menu)
+ADM_HT_PREFIX: str = "adm_ht_"             # + house_id + _ + p/e/s (facility toggle)
+ADM_HK_PREFIX: str = "adm_hk_"             # + house_id + _ + 0/1/2 (kitchen)
+ADM_HQ_PREFIX: str = "adm_hq_"             # + house_id + _ + 0..3 (quality)
+ADM_NL_PREFIX: str = "adm_nl_"             # + page (land list)
+ADM_ND_PREFIX: str = "adm_nd_"             # + land_id (land detail)
+ADM_NE_PREFIX: str = "adm_ne_"             # + land_id (land edit menu)
+ADM_LI_PREFIX: str = "adm_li_"             # + page (active listings)
+ADM_LICLOSE_PREFIX: str = "adm_lic_"       # + listing_id (close)
+ADM_C_PREFIX: str = "adm_c_"               # + page (rental contracts)
+ADM_CD_PREFIX: str = "adm_cd_"             # + contract_id (contract detail)
+ADM_CTERM_PREFIX: str = "adm_ct_"          # + contract_id (terminate)
+# Jobs
+ADM_JOBS: str = "adm_jobs"
+ADM_JOB_PREFIX: str = "adm_job_"           # + job_id (job detail)
+ADM_JOB_TOGGLE_PREFIX: str = "adm_jt_"     # + job_id (activate/deactivate)
+ADM_W_PREFIX: str = "adm_w_"               # + page (active workers)
+# Trading
+ADM_TRADE: str = "adm_trade"
+ADM_TS_PREFIX: str = "adm_ts_"             # + page (recent sales)
+ADM_TA: str = "adm_ta"                     # market activity feed
+# Bot settings
+ADM_SETTINGS: str = "adm_set"
+ADM_TG_PREFIX: str = "adm_tg_"             # + feature name (toggle on/off)
+# Database tools
+ADM_DB: str = "adm_db"
+ADM_DB_STATS: str = "adm_dbstats"
+ADM_DB_BACKUP: str = "adm_dbbackup"
+ADM_DB_BACKUPS: str = "adm_dbrs"           # backup list (restore picker)
+ADM_DB_RESTORE_PREFIX: str = "adm_dbr_"    # + filename (restore confirm)
+ADM_DB_RESTORE_OK_PREFIX: str = "adm_dbo_"  # + filename (execute restore)
+ADM_DB_CLEAN: str = "adm_dbclean"
+# Logs
+ADM_LOGS: str = "adm_logs"
+ADM_LOG_PREFIX: str = "adm_log_"           # + category + _ + page
+# Free-text input flows (ConversationHandler entry — see admin_panel)
+ADM_IN_PREFIX: str = "adm_in_"             # + code[_target[_extra]]
+ADM_IN_CANCEL: str = "adm_cancel"

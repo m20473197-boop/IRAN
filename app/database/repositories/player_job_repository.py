@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.player_job import PlayerJob
@@ -28,6 +28,21 @@ class PlayerJobRepository:
     async def has_job(self, player_id: int) -> bool:
         stmt = select(PlayerJob.id).where(PlayerJob.player_id == player_id).limit(1)
         return (await self._session.execute(stmt)).scalar() is not None
+
+    async def list_page(self, offset: int, limit: int) -> list[PlayerJob]:
+        """One page of active workers for the admin panel."""
+        stmt = select(PlayerJob).order_by(PlayerJob.id).offset(offset).limit(limit)
+        return list((await self._session.execute(stmt)).scalars().all())
+
+    async def count(self) -> int:
+        result = await self._session.execute(select(func.count(PlayerJob.id)))
+        return int(result.scalar_one())
+
+    async def count_by_job(self, job_id: int) -> int:
+        result = await self._session.execute(
+            select(func.count(PlayerJob.id)).where(PlayerJob.job_id == job_id)
+        )
+        return int(result.scalar_one())
 
     # --- Writes ----------------------------------------------------------
 

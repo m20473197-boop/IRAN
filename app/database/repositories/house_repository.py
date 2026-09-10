@@ -42,6 +42,12 @@ class HouseRepository:
         result = await self._session.execute(select(House).order_by(House.id))
         return list(result.scalars().all())
 
+    async def list_page(self, offset: int, limit: int) -> list[House]:
+        """One page of houses for the admin panel, oldest first."""
+        statement = select(House).order_by(House.id).offset(offset).limit(limit)
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
     async def count(self) -> int:
         result = await self._session.execute(select(func.count(House.id)))
         return int(result.scalar_one())
@@ -113,6 +119,8 @@ class HouseRepository:
         typo can never silently corrupt a property record.
         """
         allowed = {
+            "city",
+            "neighborhood",
             "area_sqm",
             "bedrooms",
             "living_rooms",
@@ -123,6 +131,7 @@ class HouseRepository:
             "elevator",
             "storage",
             "quality",
+            "price_override_per_mille",
         }
         unknown = set(fields) - allowed
         if unknown:

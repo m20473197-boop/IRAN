@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.house_sale import HouseSale
@@ -38,6 +38,21 @@ class HouseSaleRepository:
         )
         result = await self._session.execute(statement)
         return list(result.scalars().all())
+
+    async def list_recent(self, offset: int = 0, limit: int = 20) -> list[HouseSale]:
+        """Most recent completed sales (admin / trading views)."""
+        statement = (
+            select(HouseSale)
+            .order_by(HouseSale.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return list(result.scalars().all())
+
+    async def count(self) -> int:
+        result = await self._session.execute(select(func.count(HouseSale.id)))
+        return int(result.scalar_one())
 
     async def list_by_house(self, house_id: int, limit: int = 50) -> list[HouseSale]:
         statement = (

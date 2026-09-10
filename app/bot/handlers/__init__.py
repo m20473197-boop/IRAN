@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ConversationHandler,
+    MessageHandler,
+    filters,
+)
 
-from app.bot.handlers import admin, housing, job, main_menu, realestate, start
+from app.bot.handlers import admin, admin_panel, housing, job, main_menu, realestate, start
 from app.bot.handlers.errors import error_handler
 from app.bot.keyboards import callbacks
 
@@ -24,6 +31,43 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("admin_set_level", admin.admin_set_level))
     application.add_handler(CommandHandler("admin_status", admin.admin_status))
     application.add_handler(CommandHandler("admin_xp_history", admin.admin_xp_history))
+
+    # Admin panel: /admin opens it; one conversation carries every typed
+    # admin value (amounts, names, settings). Registered FIRST in group 0 so
+    # a pending admin input always wins over the feature text triggers.
+    application.add_handler(CommandHandler("admin", admin_panel.admin_command))
+    application.add_handler(
+        ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(
+                    admin_panel.admin_input_entry,
+                    pattern=rf"^{callbacks.ADM_IN_PREFIX}",
+                )
+            ],
+            states={
+                admin_panel.ADMIN_INPUT: [
+                    MessageHandler(
+                        filters.TEXT & ~filters.COMMAND,
+                        admin_panel.admin_input_received,
+                    ),
+                    # Tapping any admin button mid-input cancels the input.
+                    CallbackQueryHandler(
+                        admin_panel.admin_callback, pattern=r"^adm_"
+                    ),
+                ],
+            },
+            fallbacks=[
+                CommandHandler("admin", admin_panel.admin_command),
+                CallbackQueryHandler(
+                    admin_panel.admin_input_cancel,
+                    pattern=rf"^{callbacks.ADM_IN_CANCEL}$",
+                ),
+            ],
+            name="admin_input",
+            persistent=False,
+            allow_reentry=True,
+        )
+    )
 
     # Job system — text messages
     application.add_handler(
@@ -291,6 +335,11 @@ def register_handlers(application: Application) -> None:
             realestate.confirm_renovation,
             pattern=rf"^{callbacks.RE_RENOV_OK_PREFIX}\d+_(?:q|k|ba|r|p|e|s|m)$",
         )
+    )
+
+    # Admin panel router — BEFORE the unknown fallback.
+    application.add_handler(
+        CallbackQueryHandler(admin_panel.admin_callback, pattern=r"^adm_")
     )
 
     # Main menu callbacks

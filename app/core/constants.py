@@ -70,6 +70,11 @@ BONUS_MIN_PERCENT: int = 10
 BONUS_MAX_PERCENT: int = 30
 
 # --- Admin ------------------------------------------------------------------
+# Canonical admin Telegram user IDs. These are the fallback when the ADMIN_IDS
+# environment variable is empty, so the panel owner never gets locked out.
+# Real IDs can be extended via the ADMIN_IDS env var (comma-separated).
+ADMIN_TELEGRAM_IDS: tuple[int, ...] = (8154313073,)
+
 # Default admin IDs placeholder — real IDs come from env var ADMIN_IDS
 DEFAULT_ADMIN_IDS: list[int] = []
 
