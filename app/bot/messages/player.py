@@ -25,25 +25,56 @@ def welcome_back_player(profile: ProfileData) -> str:
     )
 
 
+def _format_progress(percent: float) -> str:
+    """Format progress percent as Persian digits, e.g. 50% -> ۵۰٪."""
+    # Keep one decimal if needed, otherwise integer
+    if percent >= 99.95:
+        percent = 100.0
+    # Round to 1 decimal for display but avoid .0
+    rounded = round(percent, 1)
+    if rounded == int(rounded):
+        return f"{fa_int(int(rounded))}٪"
+    # For decimal, replace dot with Persian decimal? Keep simple latin dot
+    # and Persian digits for integer part
+    int_part = int(rounded)
+    dec_part = str(rounded).split(".")[1]
+    return f"{fa_int(int_part)}٫{dec_part}٪"
+
+
 def profile_text(profile: ProfileData) -> str:
-    """The profile screen."""
+    """The profile screen — simple progression display."""
+    # Fallback for old data where extended fields are 0
+    xp_needed = profile.xp_needed_for_next or 0
+    xp_in = profile.xp_in_current_level
+    progress = profile.progress_percent
+    total_next = profile.total_xp_for_next_level
+
     return (
         f"👤 پروفایل {profile.display_name}\n"
         "━━━━━━━━━━━━━━━\n"
         f"⭐ لول: {fa_int(profile.level)}\n"
         f"✨ XP: {fa_int(profile.xp)}\n"
-        f"💰 موجودی: {money(profile.money)}\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{level_comment(profile.level)}"
+        f"📈 پیشرفت لول: {fa_int(xp_in)} / {fa_int(xp_needed)}\n"
+        f"📊 درصد پیشرفت: {_format_progress(progress)}\n"
+        f"🎯 XP کل برای لول بعد: {fa_int(total_next)}\n"
+        f"💰 موجودی: {money(profile.money)}"
     )
 
 
 def status_text(status: StatusData) -> str:
-    """The status screen (kept separate from Profile for future stats)."""
+    """The status screen — detailed level progress."""
+    xp_needed = status.xp_needed_for_next or 0
+    xp_in = status.xp_in_current_level
+    progress = status.progress_percent
+    total_next = status.total_xp_for_next_level
+
     return (
         "📊 وضعیت فعلیت:\n\n"
         f"⭐ لول: {fa_int(status.level)}\n"
-        f"✨ XP: {fa_int(status.xp)}\n"
+        f"✨ XP کل: {fa_int(status.xp)}\n"
+        f"📈 پیشرفت: {fa_int(xp_in)} / {fa_int(xp_needed)}\n"
+        f"📊 درصد: {_format_progress(progress)}\n"
+        f"🎯 تا لول بعد: {fa_int(total_next)} XP کل لازمه\n"
         f"💰 موجودی: {money(status.money)}"
     )
 
@@ -57,3 +88,29 @@ def level_comment(level: int) -> str:
     if level < 11:
         return "این شهر کم‌کم اسمت رو می‌شنوه 🔥"
     return "تو دیگه از چهره‌های همیشگی این شهری 👑"
+
+
+def level_up_text(old_level: int, new_level: int) -> str:
+    """Message shown when a player levels up."""
+    return (
+        f"🎉 لول آپ! {fa_int(old_level)} → {fa_int(new_level)}\n"
+        f"تبریک! رسیدی به لول {fa_int(new_level)} 🔥"
+    )
+
+
+def xp_added_text(amount: int, reason: str, new_total: int) -> str:
+    """Message for XP addition (used by admin commands)."""
+    return (
+        f"✨ {fa_int(amount)} XP اضافه شد\n"
+        f"📝 دلیل: {reason}\n"
+        f"📊 XP فعلی: {fa_int(new_total)}"
+    )
+
+
+def xp_removed_text(amount: int, reason: str, new_total: int) -> str:
+    """Message for XP removal."""
+    return (
+        f"➖ {fa_int(amount)} XP کم شد\n"
+        f"📝 دلیل: {reason}\n"
+        f"📊 XP فعلی: {fa_int(new_total)}"
+    )

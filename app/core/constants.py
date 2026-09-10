@@ -23,3 +23,12 @@ XP_GROWTH_PER_LEVEL: float = 1.35
 # --- Input limits -------------------------------------------------------------
 MAX_DISPLAY_NAME_LENGTH: int = 64
 MAX_USERNAME_LENGTH: int = 32
+MAX_XP_REASON_LENGTH: int = 128
+
+# --- Labor system -----------------------------------------------------------
+LABOR_REWARD: int = 50_000
+LABOR_COOLDOWN_SECONDS: int = 5 * 60  # 5 minutes
+
+# --- Admin ------------------------------------------------------------------
+# Default admin IDs placeholder — real IDs come from env var ADMIN_IDS
+DEFAULT_ADMIN_IDS: list[int] = []

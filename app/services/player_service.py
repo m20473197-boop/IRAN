@@ -17,6 +17,7 @@ from app.core import constants
 from app.database.models.player import Player
 from app.database.repositories.player_repository import PlayerRepository
 from app.game.player.dto import ProfileData, RegistrationResult, StatusData
+from app.game.player.progression import get_level_progress
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,16 @@ class PlayerService:
             )
             if player is None:
                 return None
-            return StatusData(level=player.level, xp=player.xp, money=player.money)
+            prog = get_level_progress(player.xp)
+            return StatusData(
+                level=player.level,
+                xp=player.xp,
+                money=player.money,
+                xp_in_current_level=prog.xp_in_current_level,
+                xp_needed_for_next=prog.xp_needed_for_next,
+                progress_percent=prog.progress_percent,
+                total_xp_for_next_level=prog.total_xp_for_next_level,
+            )
 
     # --- Helpers -----------------------------------------------------------
 
@@ -104,11 +114,16 @@ class PlayerService:
 
     @staticmethod
     def _to_profile(player: Player) -> ProfileData:
+        prog = get_level_progress(player.xp)
         return ProfileData(
             display_name=player.display_name,
             level=player.level,
             xp=player.xp,
             money=player.money,
+            xp_in_current_level=prog.xp_in_current_level,
+            xp_needed_for_next=prog.xp_needed_for_next,
+            progress_percent=prog.progress_percent,
+            total_xp_for_next_level=prog.total_xp_for_next_level,
         )
 
     @staticmethod

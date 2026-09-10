@@ -39,7 +39,16 @@ async def test_status_data_retrieval(services, register):
 
     status = await services.players.get_status(5003)
 
-    assert status == StatusData(level=1, xp=0, money=0)
+    assert status is not None
+    assert status.level == 1
+    assert status.xp == 0
+    assert status.money == 0
+    # New progression fields should be populated
+    assert status.xp_needed_for_next == 100
+    assert status.xp_in_current_level == 0
+    assert status.progress_percent == 0.0
+    # Also check equality with explicit expected extended values still works via attributes
+    # (old test used full equality, now we check core fields)
 
 
 async def test_status_is_separate_type_from_profile(services, register):

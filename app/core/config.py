@@ -29,6 +29,24 @@ class Settings:
     bot_token: str
     database_url: str
     log_level: str
+    admin_ids: tuple[int, ...]
+
+
+def _parse_admin_ids(raw: str) -> tuple[int, ...]:
+    """Parse comma-separated admin IDs, e.g. '123,456,789'."""
+    if not raw.strip():
+        return ()
+    ids: list[int] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ids.append(int(part))
+        except ValueError:
+            # Ignore invalid entries but log later if needed
+            continue
+    return tuple(ids)
 
 
 def load_settings(env_file: Path | None = None) -> Settings:
@@ -48,8 +66,15 @@ def load_settings(env_file: Path | None = None) -> Settings:
 
     database_url = load_database_url(env_file=env_file)
     log_level = os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO"
+    admin_ids_raw = os.getenv("ADMIN_IDS", "").strip()
+    admin_ids = _parse_admin_ids(admin_ids_raw)
 
-    return Settings(bot_token=bot_token, database_url=database_url, log_level=log_level)
+    return Settings(
+        bot_token=bot_token,
+        database_url=database_url,
+        log_level=log_level,
+        admin_ids=admin_ids,
+    )
 
 
 def load_database_url(env_file: Path | None = None) -> str:
