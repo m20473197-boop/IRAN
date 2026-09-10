@@ -263,11 +263,9 @@ class JobService:
                     message=f"Cooldown: {remaining}s remaining",
                 )
 
-            # Give salary — use MoneyService if available, otherwise direct repo
+            # Give salary — use Wallet Service pattern via direct repo for atomicity
             # For atomicity, we update PlayerJob last_work_time and total_earnings in same session,
-            # and add money via direct repo update (same pattern as LaborService) to prevent race
-            # But we also ensure Wallet Service is used: we call money_service after if present,
-            # or we use direct repo which is same logic as Wallet Service.
+            # and add money via direct repo update (same atomic pattern as MoneyService) to prevent race
 
             # Atomic update: try to update last_work_time only if cooldown passed
             # We already checked, but to prevent race, we do conditional update

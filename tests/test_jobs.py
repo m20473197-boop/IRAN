@@ -359,26 +359,6 @@ async def test_concurrent_work_does_not_bypass_cooldown(services, register):
     assert await services.money.get_balance(player.player_id) == worker.salary
 
 
-async def test_labor_system_still_works_after_job_implementation(services, register):
-    """Ensure existing labor system not broken."""
-    player = await register(tg_id=8012)
-
-    # Labor should work independently of job
-    labor_result = await services.labor.perform_labor(player.player_id)
-    assert labor_result.success is True
-    assert labor_result.reward == 50_000
-
-    # Job system should also work
-    jobs = await services.jobs.get_available_jobs()
-    worker = next(j for j in jobs if j.name == constants.JOB_WORKER_NAME)
-    await services.jobs.apply_job(player.player_id, worker.id)
-    job_result = await services.jobs.work_job(player.player_id)
-    assert job_result.success is True
-
-    # Total balance = labor + job
-    assert await services.money.get_balance(player.player_id) == 100_000
-
-
 async def test_job_messages_simple():
     from app.bot.messages.job import (
         job_applied_success,

@@ -128,30 +128,6 @@ class LevelProgressData:
 
 
 @dataclass(frozen=True, slots=True)
-class LaborResult:
-    """Outcome of a labor attempt."""
-
-    player_id: int
-    success: bool
-    reward: int
-    balance_after: int
-    remaining_seconds: int
-    last_labor_at: datetime | None
-
-
-@dataclass(frozen=True, slots=True)
-class LaborStatus:
-    """Current labor cooldown status without performing labor."""
-
-    player_id: int
-    can_work: bool
-    remaining_seconds: int
-    last_labor_at: datetime | None
-    reward: int
-    cooldown_seconds: int
-
-
-@dataclass(frozen=True, slots=True)
 class JobData:
     """DTO for a job definition."""
 

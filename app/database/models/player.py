@@ -20,8 +20,6 @@ class Player(Base):
         * ``money`` is an exact integer amount of Toman (no floats, ever).
         * The game intentionally has NO age attribute; progression is
           expressed purely through ``level`` and ``xp``.
-        * ``last_labor_at`` tracks the last successful labor action for
-          cooldown handling (Basic Labor System).
     """
 
     __tablename__ = "players"
@@ -42,11 +40,6 @@ class Player(Base):
     xp: Mapped[int] = mapped_column(nullable=False, default=constants.STARTING_XP)
     money: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=constants.STARTING_MONEY
-    )
-
-    # --- Labor system ------------------------------------------------------
-    last_labor_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, default=None
     )
 
     created_at: Mapped[datetime] = mapped_column(

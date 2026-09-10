@@ -6,8 +6,6 @@ own the transaction; Telegram handlers never touch this layer directly.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,11 +34,6 @@ class PlayerRepository:
     async def get_money(self, player_id: int) -> int | None:
         """Return the balance, or ``None`` when the player does not exist."""
         statement = select(Player.money).where(Player.id == player_id)
-        return (await self._session.execute(statement)).scalar_one_or_none()
-
-    async def get_last_labor_at(self, player_id: int) -> datetime | None:
-        """Return last labor timestamp, or None if never worked."""
-        statement = select(Player.last_labor_at).where(Player.id == player_id)
         return (await self._session.execute(statement)).scalar_one_or_none()
 
     # --- Writes ------------------------------------------------------------
@@ -78,73 +71,6 @@ class PlayerRepository:
             update(Player)
             .where(Player.id == player_id, Player.money >= amount)
             .values(money=Player.money - amount)
-        )
-        result = await self._session.execute(
-            statement, execution_options={"synchronize_session": False}
-        )
-        return bool(result.rowcount)
-
-    async def update_last_labor_at(
-        self, player_id: int, timestamp: datetime | None
-    ) -> bool:
-        """Update last labor timestamp (None allowed to reset)."""
-        statement = (
-            update(Player)
-            .where(Player.id == player_id)
-            .values(last_labor_at=timestamp)
-        )
-        result = await self._session.execute(
-            statement, execution_options={"synchronize_session": False}
-        )
-        return bool(result.rowcount)
-
-    async def try_claim_labor(
-        self, player_id: int, now: datetime, cooldown_seconds: int
-    ) -> bool:
-        """Atomically claim labor if cooldown passed.
-
-        This prevents race conditions: only one concurrent request can claim.
-
-        Returns:
-            True if claim succeeded (cooldown passed and timestamp updated),
-            False if cooldown still active or player missing.
-        """
-        threshold = now - timedelta(seconds=cooldown_seconds)
-        # Claim if last_labor_at is NULL or <= threshold
-        # Use synchronize_session=False to avoid Python-side evaluation of
-        # timezone-aware vs naive datetimes (SQLite returns naive).
-        statement = (
-            update(Player)
-            .where(
-                Player.id == player_id,
-                (Player.last_labor_at.is_(None)) | (Player.last_labor_at <= threshold),
-            )
-            .values(last_labor_at=now)
-        )
-        result = await self._session.execute(
-            statement, execution_options={"synchronize_session": False}
-        )
-        return bool(result.rowcount)
-
-    async def add_money_and_update_labor(
-        self, player_id: int, amount: int, now: datetime, cooldown_seconds: int
-    ) -> bool:
-        """Atomically add money and update labor timestamp if cooldown passed.
-
-        Combines both operations in a single UPDATE to guarantee no bypass.
-
-        Returns:
-            True if both operations succeeded (cooldown passed),
-            False if cooldown still active.
-        """
-        threshold = now - timedelta(seconds=cooldown_seconds)
-        statement = (
-            update(Player)
-            .where(
-                Player.id == player_id,
-                (Player.last_labor_at.is_(None)) | (Player.last_labor_at <= threshold),
-            )
-            .values(money=Player.money + amount, last_labor_at=now)
         )
         result = await self._session.execute(
             statement, execution_options={"synchronize_session": False}

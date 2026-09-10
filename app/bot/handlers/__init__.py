@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from app.bot.handlers import admin, job, labor, main_menu, start
+from app.bot.handlers import admin, job, main_menu, start
 from app.bot.handlers.errors import error_handler
 from app.bot.keyboards import callbacks
 
@@ -24,11 +24,6 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("admin_set_level", admin.admin_set_level))
     application.add_handler(CommandHandler("admin_status", admin.admin_status))
     application.add_handler(CommandHandler("admin_xp_history", admin.admin_xp_history))
-
-    # Labor system — text message "کارگری"
-    application.add_handler(
-        MessageHandler(filters.TEXT & filters.Regex(f"^{labor.LABOR_TRIGGER}$"), labor.labor_handler)
-    )
 
     # Job system — text messages
     application.add_handler(

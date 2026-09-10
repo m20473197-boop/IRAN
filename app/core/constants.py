@@ -25,10 +25,6 @@ MAX_DISPLAY_NAME_LENGTH: int = 64
 MAX_USERNAME_LENGTH: int = 32
 MAX_XP_REASON_LENGTH: int = 128
 
-# --- Labor system -----------------------------------------------------------
-LABOR_REWARD: int = 50_000
-LABOR_COOLDOWN_SECONDS: int = 5 * 60  # 5 minutes
-
 # --- Job system -------------------------------------------------------------
 # Initial jobs — stored in DB, values here are used for seeding
 JOB_WORKER_NAME: str = "کارگر"
