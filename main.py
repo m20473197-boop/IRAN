@@ -1,0 +1,81 @@
+"""Iran Life Bot — entry point.
+
+Startup order:
+1. Load configuration (fail fast and clearly if BOT_TOKEN is missing).
+2. Set up secret-safe logging.
+3. Build the Telegram application with services + database in ``bot_data``.
+4. Initialize the database (create missing tables only — data is kept).
+5. Start polling.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from telegram import Update
+from telegram.ext import Application, ApplicationBuilder
+
+from app.bot import setup_bot
+from app.core.config import ConfigError, Settings, load_settings
+from app.core.logging import setup_logging
+from app.database.database import Database
+from app.services import ServiceRegistry
+
+logger = logging.getLogger("main")
+
+
+def build_application(
+    settings: Settings, database: Database, services: ServiceRegistry
+) -> Application:
+    """Assemble the PTB application with its lifecycle hooks and handlers."""
+
+    async def on_startup(application: Application) -> None:
+        await database.create_all()
+        logger.info("Database initialized (missing tables created, data kept)")
+
+    async def on_shutdown(application: Application) -> None:
+        await database.dispose()
+        logger.info("Database connections closed — bot shut down")
+
+    application = (
+        ApplicationBuilder()
+        .token(settings.bot_token)
+        .post_init(on_startup)
+        .post_shutdown(on_shutdown)
+        .build()
+    )
+
+    application.bot_data["database"] = database
+    application.bot_data["services"] = services
+    setup_bot(application)
+    return application
+
+
+def main() -> None:
+    try:
+        settings = load_settings()
+    except ConfigError as exc:
+        # No token — nothing sensible can run. Fail clearly (no secrets here).
+        raise SystemExit(f"[config] {exc}") from exc
+
+    setup_logging(settings.log_level, secrets=(settings.bot_token,))
+    logger.info("Starting Iran Life Bot ...")
+
+    database = Database(settings.database_url)
+    services = ServiceRegistry(database.session_factory)
+    application = build_application(settings, database, services)
+
+    logger.info("Bot is up — starting polling")
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except Exception as exc:
+        # e.g. an invalid token: PTB embeds the token in its error message,
+        # so the exception is logged (secret-redacted) instead of letting the
+        # interpreter print it raw with the token inside.
+        logger.error("Bot terminated with an error: %s", exc)
+        raise SystemExit(1) from None
+    logger.info("Iran Life Bot stopped")
+
+
+if __name__ == "__main__":
+    main()
