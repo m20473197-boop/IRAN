@@ -38,6 +38,12 @@ def build_application(
             logger.info("Initial jobs ensured: %s jobs active", len(jobs))
         except Exception as exc:
             logger.warning("Could not seed initial jobs: %s", exc)
+        # Seed the starter houses for the Housing system
+        try:
+            houses = await services.housing.ensure_initial_houses()
+            logger.info("Initial houses ensured: %s houses on the market", len(houses))
+        except Exception as exc:
+            logger.warning("Could not seed initial houses: %s", exc)
 
     async def on_shutdown(application: Application) -> None:
         await database.dispose()

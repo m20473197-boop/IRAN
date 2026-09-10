@@ -72,3 +72,33 @@ BONUS_MAX_PERCENT: int = 30
 # --- Admin ------------------------------------------------------------------
 # Default admin IDs placeholder — real IDs come from env var ADMIN_IDS
 DEFAULT_ADMIN_IDS: list[int] = []
+
+# --- Housing / Real-estate system -------------------------------------------
+# Rental period: one "month" of a contract, in days.
+HOUSING_RENT_PERIOD_DAYS: int = 30
+
+# Sale-listing bounds: a player's asking price must stay within these
+# multiples of the dynamic market value (prevents absurd markets).
+HOUSING_SALE_MIN_PER_MILLE: int = 300     # 30% of market value
+HOUSING_SALE_MAX_PER_MILLE: int = 3000    # 300% of market value
+
+# Button presets for sale prices (per-mille of the dynamic market value).
+HOUSING_SALE_PRICE_PRESETS_PER_MILLE: tuple[int, ...] = (850, 1000, 1150, 1300)
+
+# Rent-listing bounds (relative to the dynamic market value).
+HOUSING_RENT_MIN_PER_MILLE: int = 1       # >= 0.1% of value per month
+HOUSING_RENT_MAX_PER_MILLE: int = 20      # <= 2% of value per month
+HOUSING_DEPOSIT_MAX_PER_MILLE: int = 500  # deposit <= 50% of value
+
+# Deposit presets when renting a house out: (deposit_percent of value,).
+HOUSING_DEPOSIT_PRESET_PERCENTS: tuple[int, ...] = (0, 10, 20)
+
+# XP reward for buying a house: xp = price / divisor, clamped to [min, max].
+HOUSING_PURCHASE_XP_DIVISOR: int = 20_000_000
+HOUSING_PURCHASE_XP_MIN: int = 5
+HOUSING_PURCHASE_XP_MAX: int = 300
+HOUSING_PURCHASE_XP_REASON: str = "خرید خانه"
+
+# Number of system-market houses seeded on first boot (spread over the
+# catalog cities with varied specs).
+HOUSING_SEED_COUNT: int = 30

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from app.bot.handlers import admin, job, main_menu, start
+from app.bot.handlers import admin, housing, job, main_menu, start
 from app.bot.handlers.errors import error_handler
 from app.bot.keyboards import callbacks
 
@@ -43,6 +43,17 @@ def register_handlers(application: Application) -> None:
         )
     )
 
+    # Housing system — text messages («خانه» / «مسکن» open the housing menu)
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT
+            & filters.Regex(
+                f"^({housing.HOUSING_TEXT_TRIGGER}|{housing.HOUSING_MENU_TEXT_TRIGGER})$"
+            ),
+            housing.housing_text_handler,
+        )
+    )
+
     # Job callbacks
     application.add_handler(
         CallbackQueryHandler(job.show_jobs_menu, pattern=rf"^{callbacks.JOBS_MENU}$")
@@ -65,6 +76,94 @@ def register_handlers(application: Application) -> None:
     application.add_handler(
         CallbackQueryHandler(
             job.apply_job_callback, pattern=rf"^{callbacks.JOBS_APPLY_PREFIX}\d+$"
+        )
+    )
+
+    # Housing callbacks — all must be registered BEFORE the unknown fallback.
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.show_housing_menu, pattern=rf"^{callbacks.HOUSING_MENU}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(housing.show_my_houses, pattern=rf"^{callbacks.HOUSES_MY}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(housing.show_market, pattern=rf"^{callbacks.HOUSES_MARKET}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(housing.show_rentals, pattern=rf"^{callbacks.HOUSES_RENTALS}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(housing.show_my_rents, pattern=rf"^{callbacks.HOUSES_MY_RENTS}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.show_buy_confirmation,
+            pattern=rf"^{callbacks.HOUSE_BUY_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.confirm_buy,
+            pattern=rf"^{callbacks.HOUSE_BUY_CONFIRM_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.show_sale_options,
+            pattern=rf"^{callbacks.HOUSE_SELL_OPTIONS_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.confirm_sell,
+            pattern=rf"^{callbacks.HOUSE_SELL_SET_PREFIX}\d+_\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.cancel_sale,
+            pattern=rf"^{callbacks.HOUSE_SELL_CANCEL_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.show_rentout_options,
+            pattern=rf"^{callbacks.HOUSE_RENTOUT_OPTIONS_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.confirm_rent_out,
+            pattern=rf"^{callbacks.HOUSE_RENT_SET_PREFIX}\d+_\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.cancel_rent,
+            pattern=rf"^{callbacks.HOUSE_RENT_CANCEL_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.show_rent_confirmation,
+            pattern=rf"^{callbacks.RENT_CONFIRM_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.pay_rent, pattern=rf"^{callbacks.RENT_PAY_PREFIX}\d+$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.end_rent_contract, pattern=rf"^{callbacks.RENT_END_PREFIX}\d+$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            housing.show_house_info, pattern=rf"^{callbacks.HOUSE_INFO_PREFIX}\d+$"
         )
     )
 

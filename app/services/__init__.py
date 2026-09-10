@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.services.housing_service import HousingService
 from app.services.job_service import JobService
 from app.services.level_service import LevelService
 from app.services.money_service import MoneyService
@@ -23,6 +24,7 @@ __all__ = [
     "LevelService",
     "MoneyService",
     "JobService",
+    "HousingService",
 ]
 
 
@@ -34,3 +36,4 @@ class ServiceRegistry:
         self.levels = LevelService(session_factory)
         self.money = MoneyService(session_factory)
         self.jobs = JobService(session_factory, money_service=self.money)
+        self.housing = HousingService(session_factory, level_service=self.levels)

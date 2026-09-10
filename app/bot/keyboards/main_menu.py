@@ -13,6 +13,7 @@ from app.bot.keyboards import callbacks
 BUTTON_PROFILE: str = "👤 پروفایل"
 BUTTON_STATUS: str = "📊 وضعیت"
 BUTTON_JOBS: str = "💼 شغل‌ها"
+BUTTON_HOUSING: str = "🏠 خانه"
 BUTTON_BACK_TO_MAIN: str = "🔙 منوی اصلی"
 
 
@@ -26,6 +27,9 @@ def build_main_menu() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(BUTTON_JOBS, callback_data=callbacks.JOBS_MENU),
+            ],
+            [
+                InlineKeyboardButton(BUTTON_HOUSING, callback_data=callbacks.HOUSING_MENU),
             ],
         ]
     )

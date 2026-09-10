@@ -2,10 +2,12 @@
 
 A multiplayer **life-simulation game** running as a **Telegram Bot**, inspired
 by real life in Iran — casual, humorous and friendly. This repository contains
-the clean, scalable foundation plus the **Job and Income System**: the player
-system, main menu, profile, status, level/XP service, money service and a
-time-based salary job system. Future systems (economy, housing, crime, markets,
-...) will be built on top of this base step by step.
+the clean, scalable foundation plus the **Job and Income System** and the
+**Housing and Real-Estate System**: the player system, main menu, profile,
+status, level/XP service, money service, a time-based salary job system and a
+full housing market with dynamic prices, player-to-player selling and renting.
+Future systems (education, vehicles, markets, ...) will be built on top of
+this base step by step.
 
 ## Tech Stack
 
@@ -98,7 +100,10 @@ The suite covers registration, duplicate prevention (including concurrent
 and status retrieval, DB persistence across restarts, keyboard/menu shape,
 handler flows, config guards, log-secret redaction, the time-based salary
 job system (settlement, employer behaviour, penalties, bonuses and delayed
-payments) and the additive column migration — **98 tests**.
+payments), the additive column migration, and the **complete Housing system**
+(dynamic pricing, market buying, player-to-player selling and renting,
+rental contracts, rent payments, money-transfer atomicity, assets, schema
+upgrade of old databases) — **174 tests**.
 
 ## Basic Project Structure
 
@@ -106,7 +111,7 @@ payments) and the additive column migration — **98 tests**.
 iran_life_bot/
 ├── app/
 │   ├── bot/                     # Telegram layer (and nothing else)
-│   │   ├── handlers/            #   start, main-menu callbacks, jobs, error handler
+│   │   ├── handlers/            #   start, main-menu callbacks, jobs, housing, error handler
 │   │   ├── keyboards/           #   inline keyboard builders + callback ids
 │   │   ├── messages/            #   ALL player-facing Persian texts
 │   │   ├── middleware/          #   cross-cutting update processing
@@ -116,12 +121,13 @@ iran_life_bot/
 │   │   ├── logging.py           # structured logging + secret redaction
 │   │   └── constants.py         # starting values, tunable XP curve, limits
 │   ├── database/
-│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, JobEvent, ...)
+│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, House, ...)
 │   │   ├── repositories/        # the only layer that queries the DB
 │   │   ├── database.py          # async engine + session factory
 │   │   └── migrations/          # migration strategy notes (Alembic later)
 │   ├── game/
 │   │   ├── player/              # pure domain: progression math, DTOs
+│   │   ├── housing/             # pure domain: city catalog, dynamic pricing, DTOs
 │   │   └── shared/              # shared domain errors
 │   └── services/                # business logic + transaction boundaries
 ├── tests/                       # pytest suite
@@ -191,12 +197,65 @@ Settling with the employer triggers a random **employer-behaviour event**:
 Every event (payments, bonuses, penalties and delayed payments) is saved to the
 `job_events` table and shown in 📜 تاریخچه تسویه‌ها.
 
+## Housing and Real-Estate System 🏠
+
+Players own real houses with realistic properties, prices are **always computed
+dynamically** — nothing is ever a fixed number — and the whole market is
+**player-to-player** (no NPC buyers, sellers, landlords or tenants).
+
+### Houses
+
+Every house has a unique ID plus a full property list: city, neighborhood,
+area (m²), bedrooms, living rooms, bathrooms, kitchen type (مدرن/معمولی/قدیمی),
+building age, parking, elevator, storage and a quality level
+(عالی/خوب/متوسط/ضعیف).
+
+### Dynamic pricing
+
+The price of a house is recomputed from its attributes and the market catalog
+every time it is shown:
+
+```
+price = base_price_per_sqm(city) × neighborhood_multiplier × area
+      × size_factor × age_depreciation(floor 45%) × facility_bonus
+      × kitchen_factor × quality_factor × market_factor × per-house jitter
+```
+
+* `app/game/housing/catalog.py` holds the Iranian cities (تهران، مشهد، اصفهان،
+  شیراز، تبریز، کرج، قم، اهواز، رشت، یزد) with their neighborhoods and
+  multipliers — **this file is the single connection point for a future live
+  feed of the real Iranian housing market**: refresh it and every price in the
+  game moves automatically.
+* Rent follows the Iranian رهن/اجاره model: a bigger refundable deposit (رهن)
+  lowers the monthly rent (اجاره).
+
+### Buying, selling and renting
+
+| Flow | How it works |
+|------|--------------|
+| Buy from the market | Ownerless houses (bank/developer) cost their live dynamic price. |
+| Sell to players | Owner picks a price preset (85%–130% of live value) → other players buy it. Money and ownership move in **one atomic transaction**. |
+| Rent to players | Owner picks a رهن/اجاره preset → a tenant signs a **rental contract** (stored with both parties), pays the deposit, then pays monthly rent via 💵 پرداخت اجاره. Either side can end the contract. |
+| Assets | Owned houses are the player's assets — 🏠 خانه‌های من shows every house plus the total live value. |
+
+Buying a house explicitly grants XP through the LevelService (never implicitly).
+
+### Housing screens (all button-driven)
+
+Send **«خانه»** (or use 🏠 خانه in the main menu):
+
+* 🏠 خانه‌های من — assets + manage (فروش / اجاره‌دادن / لغو آگهی / پایان قرارداد)
+* 🏖️ بازار مسکن — every purchasable house with ℹ️ and 🛒 buttons
+* 🛏️ خانه‌های اجاره‌ای — rent offers from other players
+* 📜 قراردادهای اجاره من — your contracts, rent payments and endings
+* ℹ️ اطلاعات خانه — the full property sheet for any house
+
 ## What is intentionally NOT in this stage
 
-Education, skills, housing, vehicles, marriage, businesses, loans,
-investments, markets, inflation, trading, crime, police, prisons,
-bankruptcy, crises and similar systems are **not implemented** — the
-architecture is simply prepared for them.
+Education, skills, vehicles, marriage, businesses, loans, investments,
+markets, inflation, trading, crime, police, prisons, bankruptcy, crises and
+similar systems are **not implemented** — the architecture is simply prepared
+for them.
 
 ## Useful Commands
 
