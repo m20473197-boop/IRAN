@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.services.job_service import JobService
 from app.services.labor_service import LaborService
 from app.services.level_service import LevelService
 from app.services.money_service import MoneyService
@@ -23,6 +24,7 @@ __all__ = [
     "LevelService",
     "MoneyService",
     "LaborService",
+    "JobService",
 ]
 
 
@@ -35,3 +37,4 @@ class ServiceRegistry:
         self.money = MoneyService(session_factory)
         # LaborService depends on MoneyService for wallet integration
         self.labor = LaborService(session_factory, money_service=self.money)
+        self.jobs = JobService(session_factory, money_service=self.money)

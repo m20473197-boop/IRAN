@@ -149,3 +149,86 @@ class LaborStatus:
     last_labor_at: datetime | None
     reward: int
     cooldown_seconds: int
+
+
+@dataclass(frozen=True, slots=True)
+class JobData:
+    """DTO for a job definition."""
+
+    id: int
+    name: str
+    description: str
+    salary: int
+    cooldown: int
+    required_level: int
+    required_skill: str | None
+    is_active: bool
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerJobData:
+    """DTO for player's current job."""
+
+    id: int
+    player_id: int
+    job_id: int
+    job_name: str
+    job_description: str
+    salary: int
+    cooldown: int
+    started_at: datetime
+    last_work_time: datetime | None
+    total_earnings: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class JobHistoryData:
+    """DTO for job income history."""
+
+    id: int
+    player_id: int
+    job_id: int
+    job_name: str
+    income: int
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class JobApplyResult:
+    """Outcome of applying for a job."""
+
+    player_id: int
+    job_id: int
+    job_name: str
+    success: bool
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class JobWorkResult:
+    """Outcome of working a job."""
+
+    player_id: int
+    job_id: int
+    job_name: str
+    success: bool
+    income: int
+    balance_after: int
+    total_earnings: int
+    remaining_seconds: int
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class JobLeaveResult:
+    """Outcome of leaving a job."""
+
+    player_id: int
+    job_id: int
+    job_name: str
+    success: bool
+    total_earnings: int
+    message: str

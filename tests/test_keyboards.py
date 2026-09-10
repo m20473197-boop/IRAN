@@ -7,6 +7,7 @@ from telegram import InlineKeyboardMarkup
 from app.bot.keyboards import callbacks
 from app.bot.keyboards.main_menu import (
     BUTTON_BACK_TO_MAIN,
+    BUTTON_JOBS,
     BUTTON_PROFILE,
     BUTTON_STATUS,
     build_back_to_main,
@@ -21,11 +22,20 @@ def _flat_buttons(markup: InlineKeyboardMarkup):
 def test_main_menu_exposes_only_implemented_features():
     buttons = _flat_buttons(build_main_menu())
 
-    assert {b.text for b in buttons} == {BUTTON_PROFILE, BUTTON_STATUS}
-    assert {b.callback_data for b in buttons} == {callbacks.PROFILE, callbacks.STATUS}
-    # No fake buttons for future systems (jobs, market, crime, ...).
+    assert {b.text for b in buttons} == {
+        BUTTON_PROFILE,
+        BUTTON_STATUS,
+        BUTTON_JOBS,
+    }
+    assert {b.callback_data for b in buttons} == {
+        callbacks.PROFILE,
+        callbacks.STATUS,
+        callbacks.JOBS_MENU,
+    }
+    # No fake buttons for future systems (market, crime, housing, ...).
+    # Jobs is now implemented, so "شغل" is allowed.
     labels = " ".join(b.text for b in buttons).lower()
-    for banned in ("job", "شغل", "بازار", "خونه", "جرم", "fromid"):
+    for banned in ("بازار", "خونه", "جرم", "fromid", "market", "crime", "house"):
         assert banned not in labels
 
 

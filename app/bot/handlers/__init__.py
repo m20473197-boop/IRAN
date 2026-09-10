@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from app.bot.handlers import admin, labor, main_menu, start
+from app.bot.handlers import admin, job, labor, main_menu, start
 from app.bot.handlers.errors import error_handler
 from app.bot.keyboards import callbacks
 
@@ -28,6 +28,52 @@ def register_handlers(application: Application) -> None:
     # Labor system — text message "کارگری"
     application.add_handler(
         MessageHandler(filters.TEXT & filters.Regex(f"^{labor.LABOR_TRIGGER}$"), labor.labor_handler)
+    )
+
+    # Job system — text messages
+    application.add_handler(
+        MessageHandler(filters.TEXT & filters.Regex(f"^{job.WORK_TEXT_TRIGGER}$"), job.work_text_handler)
+    )
+    application.add_handler(
+        MessageHandler(filters.TEXT & filters.Regex(f"^{job.JOBS_TEXT_TRIGGER}$"), job.jobs_text_handler)
+    )
+    application.add_handler(
+        MessageHandler(filters.TEXT & filters.Regex(f"^{job.MY_JOB_TEXT_TRIGGER}$"), job.my_job_text_handler)
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{job.LEAVE_JOB_TEXT_TRIGGER}$"), job.leave_job_text_handler
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{job.APPLY_JOB_TEXT_TRIGGER}.*$"), job.apply_job_text_handler
+        )
+    )
+
+    # Job callbacks
+    application.add_handler(
+        CallbackQueryHandler(job.show_jobs_menu, pattern=rf"^{callbacks.JOBS_MENU}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(job.show_jobs_list, pattern=rf"^{callbacks.JOBS_LIST}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(job.show_my_job, pattern=rf"^{callbacks.JOBS_MY_JOB}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(job.work_job_callback, pattern=rf"^{callbacks.JOBS_WORK}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(job.leave_job_callback, pattern=rf"^{callbacks.JOBS_LEAVE}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(job.show_job_history, pattern=rf"^{callbacks.JOBS_HISTORY}$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            job.apply_job_callback, pattern=rf"^{callbacks.JOBS_APPLY_PREFIX}\d+$"
+        )
     )
 
     # Main menu callbacks

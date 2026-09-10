@@ -21,8 +21,11 @@ async def db(tmp_path) -> Database:
 
 
 @pytest.fixture
-def services(db: Database) -> ServiceRegistry:
-    return ServiceRegistry(db.session_factory)
+async def services(db: Database) -> ServiceRegistry:
+    registry = ServiceRegistry(db.session_factory)
+    # Seed initial jobs for Job system tests
+    await registry.jobs.ensure_initial_jobs()
+    return registry
 
 
 @pytest.fixture

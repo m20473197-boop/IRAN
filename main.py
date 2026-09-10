@@ -32,6 +32,12 @@ def build_application(
     async def on_startup(application: Application) -> None:
         await database.create_all()
         logger.info("Database initialized (missing tables created, data kept)")
+        # Seed initial jobs for Job and Income System
+        try:
+            jobs = await services.jobs.ensure_initial_jobs()
+            logger.info("Initial jobs ensured: %s jobs active", len(jobs))
+        except Exception as exc:
+            logger.warning("Could not seed initial jobs: %s", exc)
 
     async def on_shutdown(application: Application) -> None:
         await database.dispose()
