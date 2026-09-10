@@ -1,5 +1,8 @@
 """Repositories package — the only layer that talks to the database."""
 
+from app.database.repositories.construction_project_repository import (
+    ConstructionProjectRepository,
+)
 from app.database.repositories.house_listing_repository import (
     HouseListingRepository,
 )
@@ -11,9 +14,19 @@ from app.database.repositories.house_transaction_repository import (
 from app.database.repositories.job_event_repository import JobEventRepository
 from app.database.repositories.job_history_repository import JobHistoryRepository
 from app.database.repositories.job_repository import JobRepository
+from app.database.repositories.land_repository import LandRepository
+from app.database.repositories.land_transaction_repository import (
+    LandTransactionRepository,
+)
 from app.database.repositories.level_up_repository import LevelUpRepository
 from app.database.repositories.player_job_repository import PlayerJobRepository
 from app.database.repositories.player_repository import PlayerRepository
+from app.database.repositories.property_upgrade_repository import (
+    PropertyUpgradeRepository,
+)
+from app.database.repositories.renovation_project_repository import (
+    RenovationProjectRepository,
+)
 from app.database.repositories.rental_contract_repository import (
     RentalContractRepository,
 )
@@ -34,4 +47,9 @@ __all__ = [
     "HouseSaleRepository",
     "RentalContractRepository",
     "HouseTransactionRepository",
+    "LandRepository",
+    "LandTransactionRepository",
+    "ConstructionProjectRepository",
+    "RenovationProjectRepository",
+    "PropertyUpgradeRepository",
 ]

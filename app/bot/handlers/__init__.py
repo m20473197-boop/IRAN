@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
-from app.bot.handlers import admin, housing, job, main_menu, start
+from app.bot.handlers import admin, housing, job, main_menu, realestate, start
 from app.bot.handlers.errors import error_handler
 from app.bot.keyboards import callbacks
 
@@ -51,6 +51,38 @@ def register_handlers(application: Application) -> None:
                 f"^({housing.HOUSING_TEXT_TRIGGER}|{housing.HOUSING_MENU_TEXT_TRIGGER})$"
             ),
             housing.housing_text_handler,
+        )
+    )
+
+    # Land / Construction / Renovation — text messages
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{realestate.LANDS_MY_TEXT_TRIGGER}$"),
+            realestate.lands_my_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{realestate.LANDS_MARKET_TEXT_TRIGGER}$"),
+            realestate.lands_market_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{realestate.BUILD_TEXT_TRIGGER}$"),
+            realestate.build_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{realestate.STATUS_TEXT_TRIGGER}$"),
+            realestate.status_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{realestate.RENOVATE_TEXT_TRIGGER}$"),
+            realestate.renovate_text_handler,
         )
     )
 
@@ -164,6 +196,100 @@ def register_handlers(application: Application) -> None:
     application.add_handler(
         CallbackQueryHandler(
             housing.show_house_info, pattern=rf"^{callbacks.HOUSE_INFO_PREFIX}\d+$"
+        )
+    )
+
+    # Land / Construction / Renovation callbacks — BEFORE the unknown fallback.
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_my_lands, pattern=rf"^{callbacks.RE_LANDS_MY}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_lands_market, pattern=rf"^{callbacks.RE_LANDS_MARKET}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_land_info, pattern=rf"^{callbacks.RE_LAND_INFO_PREFIX}\d+$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_land_buy_confirmation,
+            pattern=rf"^{callbacks.RE_LAND_BUY_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.confirm_land_buy,
+            pattern=rf"^{callbacks.RE_LAND_BUY_OK_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_build_menu, pattern=rf"^{callbacks.RE_BUILD_MENU}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_build_type_picker,
+            pattern=rf"^{callbacks.RE_BUILD_LAND_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_build_step,
+            pattern=rf"^{callbacks.RE_BUILD_SPEC_PREFIX}\d+_[av](?:_(?:\d+|[mge])){{0,4}}$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_construction_confirmation,
+            pattern=rf"^{callbacks.RE_BUILD_CONFIRM_PREFIX}"
+            rf"\d+_[av_0-9mge]+_P[01]E[01]S[01]$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.confirm_construction,
+            pattern=rf"^{callbacks.RE_BUILD_EXEC_PREFIX}"
+            rf"\d+_[av_0-9mge]+_P[01]E[01]S[01]$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.cancel_construction,
+            pattern=rf"^{callbacks.RE_BUILD_CANCEL_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_status, pattern=rf"^{callbacks.RE_STATUS}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_renov_menu, pattern=rf"^{callbacks.RE_RENOV_MENU}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_renovation_options,
+            pattern=rf"^{callbacks.RE_RENOV_OPTS_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.show_renovation_confirmation,
+            pattern=rf"^{callbacks.RE_RENOV_CONFIRM_PREFIX}\d+_(?:q|k|ba|r|p|e|s|m)$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            realestate.confirm_renovation,
+            pattern=rf"^{callbacks.RE_RENOV_OK_PREFIX}\d+_(?:q|k|ba|r|p|e|s|m)$",
         )
     )
 

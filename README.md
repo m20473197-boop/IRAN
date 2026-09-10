@@ -2,12 +2,13 @@
 
 A multiplayer **life-simulation game** running as a **Telegram Bot**, inspired
 by real life in Iran — casual, humorous and friendly. This repository contains
-the clean, scalable foundation plus the **Job and Income System** and the
-**Housing and Real-Estate System**: the player system, main menu, profile,
-status, level/XP service, money service, a time-based salary job system and a
-full housing market with dynamic prices, player-to-player selling and renting.
-Future systems (education, vehicles, markets, ...) will be built on top of
-this base step by step.
+the clean, scalable foundation plus the **Job and Income System**, the
+**Housing and Real-Estate System** and the **Land, Construction and Renovation
+System**: players, main menu, profile, status, level/XP, wallet, a time-based
+salary job system, a full housing market with dynamic prices, land trading,
+time-based construction and renovations that raise property value. Future
+systems (education, vehicles, markets, ...) will be built on top of this base
+step by step.
 
 ## Tech Stack
 
@@ -100,10 +101,14 @@ The suite covers registration, duplicate prevention (including concurrent
 and status retrieval, DB persistence across restarts, keyboard/menu shape,
 handler flows, config guards, log-secret redaction, the time-based salary
 job system (settlement, employer behaviour, penalties, bonuses and delayed
-payments), the additive column migration, and the **complete Housing system**
+payments), the additive column migration, the **complete Housing system**
 (dynamic pricing, market buying, player-to-player selling and renting,
 rental contracts, rent payments, money-transfer atomicity, assets, schema
-upgrade of old databases) — **174 tests**.
+upgrade of old databases) and the **complete Land, Construction and
+Renovation system** (dynamic land pricing, buying land, the full
+button-driven construction wizard, progress and completion, house creation,
+renovation options and value increases, cancellations with refunds, the
+economy knob and schema upgrades) — **240 tests**.
 
 ## Basic Project Structure
 
@@ -111,7 +116,7 @@ upgrade of old databases) — **174 tests**.
 iran_life_bot/
 ├── app/
 │   ├── bot/                     # Telegram layer (and nothing else)
-│   │   ├── handlers/            #   start, main-menu callbacks, jobs, housing, error handler
+│   │   ├── handlers/            #   start, jobs, housing, land/construction, error handler
 │   │   ├── keyboards/           #   inline keyboard builders + callback ids
 │   │   ├── messages/            #   ALL player-facing Persian texts
 │   │   ├── middleware/          #   cross-cutting update processing
@@ -121,13 +126,14 @@ iran_life_bot/
 │   │   ├── logging.py           # structured logging + secret redaction
 │   │   └── constants.py         # starting values, tunable XP curve, limits
 │   ├── database/
-│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, House, ...)
+│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, House, Land, ...)
 │   │   ├── repositories/        # the only layer that queries the DB
 │   │   ├── database.py          # async engine + session factory
 │   │   └── migrations/          # migration strategy notes (Alembic later)
 │   ├── game/
 │   │   ├── player/              # pure domain: progression math, DTOs
 │   │   ├── housing/             # pure domain: city catalog, dynamic pricing, DTOs
+│   │   ├── realestate/          # pure domain: land pricing, construction, renovation
 │   │   └── shared/              # shared domain errors
 │   └── services/                # business logic + transaction boundaries
 ├── tests/                       # pytest suite
@@ -249,6 +255,67 @@ Send **«خانه»** (or use 🏠 خانه in the main menu):
 * 🛏️ خانه‌های اجاره‌ای — rent offers from other players
 * 📜 قراردادهای اجاره من — your contracts, rent payments and endings
 * ℹ️ اطلاعات خانه — the full property sheet for any house
+
+## Land, Construction and Renovation System 🌍🏗️🛠️
+
+Everything starts with land. Land trades with **fully dynamic prices**, houses
+are **built over real time** (never instantly) and renovations **raise
+property value** by changing the very attributes the dynamic pricing engine
+reads.
+
+### Land
+
+Every parcel has a unique ID, an owner, city, neighborhood, size (m²) and a
+location-quality label (لوکس/عالی/خوب/متوسط derived from the neighborhood).
+The market value is always recomputed live:
+
+```
+price = base_price_per_sqm(city) × LAND_RATIO(0.45) × neighborhood
+      × size × wholesale_size_discount × market_factor × per-parcel jitter
+```
+
+``market_factor`` is the shared **economy knob**
+(``constants.ECONOMY_MARKET_CONDITIONS``) — land prices, construction costs
+and renovation costs all move together when the economy moves. This is the
+future integration point for the Inflation/Economy system (and for real
+Iranian market data, through the same housing catalog).
+
+### Building on your land (🏗️ ساخت خانه)
+
+A fully button-driven wizard picks: building type (آپارتمانی ۲–۴ طبقه /
+ویلایی) → floors → total built area (bounded by land × floors) → bedrooms →
+material grade (اقتصادی/استاندارد/لوکس) → facilities. Cost depends on size,
+materials, floors, facilities and the live market; duration scales with
+area/quality/floors (days). Money is paid upfront; progress can be followed:
+
+```
+🏗️ Building progress:
+▓▓▓░░░░░░░ 40%
+Time remaining: 6 days
+```
+
+On completion a brand-new House (age 0, chosen quality/kitchen/facilities) is
+created on the parcel and plugs straight into the Housing system — it appears
+in خانه‌های من, can be sold, rented out, and its value is the standard dynamic
+house price. Cancelling an active project refunds 70%. Completion grants XP.
+
+### Renovation (🛠️ بازسازی خانه)
+
+Each owned, tenant-free house offers live-quoted options — raise quality,
+renovate the kitchen, add a bathroom, add a room, add parking/elevator/
+storage, or modernize an old building (shaves years off). Every option costs
+money and takes days; on completion the house attributes change and the
+dynamic pricing engine immediately values it higher (recorded as
+value_before → value_after in the `property_upgrades` audit table).
+
+### Screens
+
+Inside 🏠 خانه: 🌍 زمین‌های من · 🛒 خرید زمین · 🏗️ ساخت خانه · 📈 وضعیت ساخت ·
+🛠️ بازسازی خانه · ℹ️ اطلاعات ملک — plus the Persian text commands «زمین‌های من»،
+«خرید زمین»، «ساخت خانه»، «وضعیت ساخت»، «بازسازی خانه». Completed
+constructions and renovations settle lazily whenever any related screen is
+opened (atomic, race-safe) — a future scheduler can also call
+``RealEstateService.settle_due()`` periodically.
 
 ## What is intentionally NOT in this stage
 

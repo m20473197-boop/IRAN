@@ -102,3 +102,22 @@ HOUSING_PURCHASE_XP_REASON: str = "خرید خانه"
 # Number of system-market houses seeded on first boot (spread over the
 # catalog cities with varied specs).
 HOUSING_SEED_COUNT: int = 30
+
+# --- Land / Construction / Renovation ----------------------------------------
+# The single economy knob for the whole real-estate market: land prices,
+# construction costs and renovation costs are all multiplied by it. The future
+# Economy/Inflation system just moves this value (or passes an explicit
+# ``market_factor``) and every price in the game reacts — nothing is fixed.
+ECONOMY_MARKET_CONDITIONS: float = 1.0
+
+# Ownerless lands seeded on first boot (system land market).
+REALESTATE_SEED_LAND_COUNT: int = 24
+
+# XP reward for completing a construction: xp = cost / divisor, clamped to
+# the same [min, max] band as house purchases.
+CONSTRUCTION_XP_DIVISOR: int = 30_000_000
+CONSTRUCTION_XP_REASON: str = "تکمیل ساخت ملک"
+
+# Cancelling an in-progress construction refunds this share of the paid cost
+# (the rest is wasted materials/permits).
+CONSTRUCTION_CANCEL_REFUND_PERCENT: int = 70

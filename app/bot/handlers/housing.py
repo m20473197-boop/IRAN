@@ -131,6 +131,13 @@ async def show_my_houses(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _edit(query, error_messages.NOT_REGISTERED, build_back_to_main())
         return
 
+    # Lazy completion: finish any construction/renovation that is due so the
+    # asset screen always shows the current state.
+    try:
+        await services.realestate.settle_due()
+    except Exception:  # noqa: BLE001 — settlement is best-effort here
+        logger.warning("settle_due failed in show_my_houses", exc_info=True)
+
     try:
         assets = await services.housing.get_player_assets(player_id)
     except Exception as exc:
@@ -223,6 +230,10 @@ async def show_house_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     services = get_services(context)
     viewer_id = await _resolve_player_id(services, query.from_user.id)
+    try:
+        await services.realestate.settle_due()
+    except Exception:  # noqa: BLE001 — settlement is best-effort here
+        logger.warning("settle_due failed in show_house_info", exc_info=True)
     try:
         info = await services.housing.get_house_info(house_id, viewer_id)
     except HouseNotFoundError:

@@ -166,7 +166,7 @@ class HousingService:
         )
 
     @staticmethod
-    def _pricing_input(house: House) -> pricing.HousePricingInput:
+    def pricing_input_for_house(house: House) -> pricing.HousePricingInput:
         return pricing.HousePricingInput(
             house_id=house.id,
             city=house.city,
@@ -185,11 +185,11 @@ class HousingService:
 
     def estimate_value(self, house: House) -> int:
         """Dynamic market value of a house (exact integer Toman)."""
-        return pricing.estimate_house_price(self._pricing_input(house))
+        return pricing.estimate_house_price(self.pricing_input_for_house(house))
 
     def estimate_rent(self, house: House) -> int:
         """Dynamic suggested monthly rent (no deposit) for a house."""
-        return pricing.estimate_monthly_rent(self._pricing_input(house))
+        return pricing.estimate_monthly_rent(self.pricing_input_for_house(house))
 
     @staticmethod
     def _xp_for_price(price: int) -> int:

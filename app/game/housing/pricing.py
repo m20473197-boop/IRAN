@@ -45,12 +45,12 @@ AGE_DEPRECIATION_PER_YEAR: float = 0.012
 AGE_FACTOR_FLOOR: float = 0.45
 
 # Facility bonuses (multiplicative additive parts, in percent).
-PARKING_BONUS: float = 0.03
-ELEVATOR_BONUS: float = 0.04
-STORAGE_BONUS: float = 0.015
-EXTRA_BATHROOM_BONUS: float = 0.02   # per bathroom beyond the first
+PARKING_BONUS: float = 0.05
+ELEVATOR_BONUS: float = 0.06
+STORAGE_BONUS: float = 0.03
+EXTRA_BATHROOM_BONUS: float = 0.03   # per bathroom beyond the first
 LIVING_ROOM_BONUS: float = 0.02      # per living room
-BEDROOM_BONUS: float = 0.01          # per bedroom beyond the first (small)
+BEDROOM_BONUS: float = 0.02          # per bedroom beyond the first (small)
 
 # Kitchen types (Persian) → multiplier.
 KITCHEN_FACTORS: dict[str, float] = {

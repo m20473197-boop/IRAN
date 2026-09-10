@@ -105,3 +105,38 @@ class HouseRepository:
             statement, execution_options={"synchronize_session": False}
         )
         return bool(result.rowcount)
+
+    async def update_attributes(self, house_id: int, **fields: object) -> bool:
+        """Update a whitelisted set of house attributes (used by renovations).
+
+        Only real House columns may be passed; anything else is rejected so a
+        typo can never silently corrupt a property record.
+        """
+        allowed = {
+            "area_sqm",
+            "bedrooms",
+            "living_rooms",
+            "bathrooms",
+            "kitchen_type",
+            "building_age_years",
+            "parking",
+            "elevator",
+            "storage",
+            "quality",
+        }
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"unknown house attributes: {sorted(unknown)}")
+        if not fields:
+            return False
+        statement = update(House).where(House.id == house_id).values(**fields)
+        result = await self._session.execute(
+            statement, execution_options={"synchronize_session": False}
+        )
+        # The UPDATE bypasses the identity map (synchronize_session=False), so
+        # expire any cached instance — later reads in this session must see
+        # the new attributes (e.g. when valuing the house after a renovation).
+        cached = await self._session.get(House, house_id)
+        if cached is not None:
+            self._session.expire(cached)
+        return bool(result.rowcount)

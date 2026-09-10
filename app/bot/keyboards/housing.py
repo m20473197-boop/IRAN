@@ -6,6 +6,13 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.keyboards import callbacks
 from app.bot.keyboards.main_menu import BUTTON_BACK_TO_MAIN
+from app.bot.keyboards.realestate import (
+    BUTTON_BUILD,
+    BUTTON_BUILD_STATUS,
+    BUTTON_LANDS_MARKET,
+    BUTTON_LANDS_MY,
+    BUTTON_RENOVATE,
+)
 from app.bot.messages.formatters import fa_int
 
 # --- Button labels ------------------------------------------------------------
@@ -22,6 +29,7 @@ BUTTON_BUY: str = "🛒 خرید"
 BUTTON_CONFIRM_BUY: str = "✅ تأیید خرید"
 BUTTON_SELL: str = "🏷️ فروش"
 BUTTON_RENT_OUT: str = "🔑 اجاره‌دادن"
+BUTTON_RENOVATE_HOUSE: str = "🛠️"
 BUTTON_CANCEL_SALE: str = "❌ لغو فروش"
 BUTTON_CANCEL_RENT: str = "❌ لغو اجاره"
 BUTTON_RENT: str = "🔑 اجاره"
@@ -31,7 +39,7 @@ BUTTON_END_CONTRACT: str = "⏹ پایان قرارداد"
 
 
 def build_housing_menu() -> InlineKeyboardMarkup:
-    """The housing main menu."""
+    """The housing main menu — houses, lands, construction and renovation."""
     return InlineKeyboardMarkup(
         [
             [
@@ -48,6 +56,27 @@ def build_housing_menu() -> InlineKeyboardMarkup:
                 ),
                 InlineKeyboardButton(
                     BUTTON_HOUSES_MY_RENTS, callback_data=callbacks.HOUSES_MY_RENTS
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    BUTTON_LANDS_MY, callback_data=callbacks.RE_LANDS_MY
+                ),
+                InlineKeyboardButton(
+                    BUTTON_LANDS_MARKET, callback_data=callbacks.RE_LANDS_MARKET
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    BUTTON_BUILD, callback_data=callbacks.RE_BUILD_MENU
+                ),
+                InlineKeyboardButton(
+                    BUTTON_BUILD_STATUS, callback_data=callbacks.RE_STATUS
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    BUTTON_RENOVATE, callback_data=callbacks.RE_RENOV_MENU
                 ),
             ],
             [
@@ -171,6 +200,10 @@ def build_my_houses(assets) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     BUTTON_RENT_OUT,
                     callback_data=f"{callbacks.HOUSE_RENTOUT_OPTIONS_PREFIX}{house.id}",
+                ),
+                InlineKeyboardButton(
+                    BUTTON_RENOVATE_HOUSE,
+                    callback_data=f"{callbacks.RE_RENOV_OPTS_PREFIX}{house.id}",
                 ),
             ]
         rows.append(actions)

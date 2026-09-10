@@ -17,6 +17,7 @@ from app.services.job_service import JobService
 from app.services.level_service import LevelService
 from app.services.money_service import MoneyService
 from app.services.player_service import PlayerService
+from app.services.realestate_service import RealEstateService
 
 __all__ = [
     "ServiceRegistry",
@@ -37,3 +38,6 @@ class ServiceRegistry:
         self.money = MoneyService(session_factory)
         self.jobs = JobService(session_factory, money_service=self.money)
         self.housing = HousingService(session_factory, level_service=self.levels)
+        self.realestate = RealEstateService(
+            session_factory, level_service=self.levels, housing_service=self.housing
+        )

@@ -36,3 +36,21 @@ HOUSE_RENT_CANCEL_PREFIX: str = "h_rentcancel_"  # + house_id
 RENT_CONFIRM_PREFIX: str = "h_rentok_"     # + house_id (executes renting)
 RENT_PAY_PREFIX: str = "h_rentpay_"        # + contract_id
 RENT_END_PREFIX: str = "h_rentend_"        # + contract_id
+
+# Land / Construction / Renovation system
+RE_LANDS_MY: str = "re_lands_my"           # زمین‌های من
+RE_LANDS_MARKET: str = "re_lands_mkt"      # خرید زمین (list)
+RE_LAND_INFO_PREFIX: str = "re_li_"        # + land_id (اطلاعات ملک)
+RE_LAND_BUY_PREFIX: str = "re_lb_"         # + land_id (buy confirmation)
+RE_LAND_BUY_OK_PREFIX: str = "re_lbo_"     # + land_id (executes purchase)
+RE_BUILD_MENU: str = "re_build"            # ساخت خانه (pick a vacant land)
+RE_BUILD_LAND_PREFIX: str = "re_b_"        # + land_id (building type picker)
+RE_BUILD_SPEC_PREFIX: str = "re_bs_"       # + blueprint steps (see handler)
+RE_BUILD_CONFIRM_PREFIX: str = "re_bc_"    # + full blueprint (confirm screen)
+RE_BUILD_EXEC_PREFIX: str = "re_bx_"       # + full blueprint (starts project)
+RE_BUILD_CANCEL_PREFIX: str = "re_bcx_"    # + project_id (cancel construction)
+RE_STATUS: str = "re_status"               # وضعیت ساخت
+RE_RENOV_MENU: str = "re_renov"            # بازسازی خانه (pick a house)
+RE_RENOV_OPTS_PREFIX: str = "re_ro_"       # + house_id (renovation options)
+RE_RENOV_CONFIRM_PREFIX: str = "re_rc_"    # + house_id + type (confirm)
+RE_RENOV_OK_PREFIX: str = "re_rk_"         # + house_id + type (starts project)

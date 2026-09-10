@@ -44,6 +44,12 @@ def build_application(
             logger.info("Initial houses ensured: %s houses on the market", len(houses))
         except Exception as exc:
             logger.warning("Could not seed initial houses: %s", exc)
+        # Seed the starter lands for the Land/Construction system
+        try:
+            lands = await services.realestate.ensure_initial_lands()
+            logger.info("Initial lands ensured: %s lands on the market", len(lands))
+        except Exception as exc:
+            logger.warning("Could not seed initial lands: %s", exc)
 
     async def on_shutdown(application: Application) -> None:
         await database.dispose()
