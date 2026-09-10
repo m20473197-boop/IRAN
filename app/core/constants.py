@@ -70,5 +70,59 @@ BONUS_MIN_PERCENT: int = 10
 BONUS_MAX_PERCENT: int = 30
 
 # --- Admin ------------------------------------------------------------------
+# Canonical admin Telegram user IDs. These are the fallback when the ADMIN_IDS
+# environment variable is empty, so the panel owner never gets locked out.
+# Real IDs can be extended via the ADMIN_IDS env var (comma-separated).
+ADMIN_TELEGRAM_IDS: tuple[int, ...] = (8154313073,)
+
 # Default admin IDs placeholder — real IDs come from env var ADMIN_IDS
 DEFAULT_ADMIN_IDS: list[int] = []
+
+# --- Housing / Real-estate system -------------------------------------------
+# Rental period: one "month" of a contract, in days.
+HOUSING_RENT_PERIOD_DAYS: int = 30
+
+# Sale-listing bounds: a player's asking price must stay within these
+# multiples of the dynamic market value (prevents absurd markets).
+HOUSING_SALE_MIN_PER_MILLE: int = 300     # 30% of market value
+HOUSING_SALE_MAX_PER_MILLE: int = 3000    # 300% of market value
+
+# Button presets for sale prices (per-mille of the dynamic market value).
+HOUSING_SALE_PRICE_PRESETS_PER_MILLE: tuple[int, ...] = (850, 1000, 1150, 1300)
+
+# Rent-listing bounds (relative to the dynamic market value).
+HOUSING_RENT_MIN_PER_MILLE: int = 1       # >= 0.1% of value per month
+HOUSING_RENT_MAX_PER_MILLE: int = 20      # <= 2% of value per month
+HOUSING_DEPOSIT_MAX_PER_MILLE: int = 500  # deposit <= 50% of value
+
+# Deposit presets when renting a house out: (deposit_percent of value,).
+HOUSING_DEPOSIT_PRESET_PERCENTS: tuple[int, ...] = (0, 10, 20)
+
+# XP reward for buying a house: xp = price / divisor, clamped to [min, max].
+HOUSING_PURCHASE_XP_DIVISOR: int = 20_000_000
+HOUSING_PURCHASE_XP_MIN: int = 5
+HOUSING_PURCHASE_XP_MAX: int = 300
+HOUSING_PURCHASE_XP_REASON: str = "خرید خانه"
+
+# Number of system-market houses seeded on first boot (spread over the
+# catalog cities with varied specs).
+HOUSING_SEED_COUNT: int = 30
+
+# --- Land / Construction / Renovation ----------------------------------------
+# The single economy knob for the whole real-estate market: land prices,
+# construction costs and renovation costs are all multiplied by it. The future
+# Economy/Inflation system just moves this value (or passes an explicit
+# ``market_factor``) and every price in the game reacts — nothing is fixed.
+ECONOMY_MARKET_CONDITIONS: float = 1.0
+
+# Ownerless lands seeded on first boot (system land market).
+REALESTATE_SEED_LAND_COUNT: int = 24
+
+# XP reward for completing a construction: xp = cost / divisor, clamped to
+# the same [min, max] band as house purchases.
+CONSTRUCTION_XP_DIVISOR: int = 30_000_000
+CONSTRUCTION_XP_REASON: str = "تکمیل ساخت ملک"
+
+# Cancelling an in-progress construction refunds this share of the paid cost
+# (the rest is wasted materials/permits).
+CONSTRUCTION_CANCEL_REFUND_PERCENT: int = 70

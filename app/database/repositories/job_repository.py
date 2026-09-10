@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.job import Job
@@ -41,6 +41,31 @@ class JobRepository:
         stmt = select(Job.id)
         result = await self._session.execute(stmt)
         return len(result.scalars().all())
+
+    async def update_fields(self, job_id: int, **fields: object) -> bool:
+        """Update a whitelisted set of job settings (admin panel)."""
+        allowed = {
+            "description",
+            "salary",
+            "hourly_salary",
+            "employer",
+            "cooldown",
+            "required_level",
+            "is_active",
+        }
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"unknown job attributes: {sorted(unknown)}")
+        if not fields:
+            return False
+        statement = update(Job).where(Job.id == job_id).values(**fields)
+        result = await self._session.execute(
+            statement, execution_options={"synchronize_session": False}
+        )
+        cached = await self._session.get(Job, job_id)
+        if cached is not None:
+            self._session.expire(cached)
+        return bool(result.rowcount)
 
     # --- Writes ----------------------------------------------------------
 

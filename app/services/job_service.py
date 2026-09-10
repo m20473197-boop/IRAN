@@ -39,6 +39,7 @@ from app.database.repositories.job_history_repository import JobHistoryRepositor
 from app.database.repositories.job_repository import JobRepository
 from app.database.repositories.player_job_repository import PlayerJobRepository
 from app.database.repositories.player_repository import PlayerRepository
+from app.game.admin import runtime as admin_runtime
 from app.game.player.dto import (
     JobApplyResult,
     JobData,
@@ -290,7 +291,7 @@ class JobService:
                 raise JobNotFoundError("Job not found (deleted)")
 
             minutes = self._elapsed_minutes(pj.started_at)
-            if minutes < constants.MIN_WORK_MINUTES_FOR_SETTLEMENT:
+            if minutes < admin_runtime.min_work_minutes():
                 raise JobNotEnoughTimeError(
                     "Not enough work time for settlement yet"
                 )

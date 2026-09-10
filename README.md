@@ -2,10 +2,14 @@
 
 A multiplayer **life-simulation game** running as a **Telegram Bot**, inspired
 by real life in Iran — casual, humorous and friendly. This repository contains
-the clean, scalable foundation plus the **Job and Income System**: the player
-system, main menu, profile, status, level/XP service, money service and a
-time-based salary job system. Future systems (economy, housing, crime, markets,
-...) will be built on top of this base step by step.
+the clean, scalable foundation plus the **Job and Income System**, the
+**Housing and Real-Estate System**, the **Land, Construction and Renovation
+System** and the **Admin Panel**: players, main menu, profile, status,
+level/XP, wallet, a time-based salary job system, a full housing market with
+dynamic prices, land trading, time-based construction and renovations that
+raise property value, and a button-driven admin console to run the game. Future
+systems (education, vehicles, markets, ...) will be built on top of this base
+step by step.
 
 ## Tech Stack
 
@@ -98,7 +102,17 @@ The suite covers registration, duplicate prevention (including concurrent
 and status retrieval, DB persistence across restarts, keyboard/menu shape,
 handler flows, config guards, log-secret redaction, the time-based salary
 job system (settlement, employer behaviour, penalties, bonuses and delayed
-payments) and the additive column migration — **98 tests**.
+payments), the additive column migration, the **complete Housing system**
+(dynamic pricing, market buying, player-to-player selling and renting,
+rental contracts, rent payments, money-transfer atomicity, assets, schema
+upgrade of old databases) and the **complete Land, Construction and
+Renovation system** (dynamic land pricing, buying land, the full
+button-driven construction wizard, progress and completion, house creation,
+renovation options and value increases, cancellations with refunds, the
+economy knob and schema upgrades), the **complete Admin Panel** (auth guard,
+ban enforcement, Persian-number parsing, dashboard, users, economy, real
+estate, jobs, trading, settings, database tools and logs — **113 tests**) —
+**365 tests**.
 
 ## Basic Project Structure
 
@@ -106,7 +120,7 @@ payments) and the additive column migration — **98 tests**.
 iran_life_bot/
 ├── app/
 │   ├── bot/                     # Telegram layer (and nothing else)
-│   │   ├── handlers/            #   start, main-menu callbacks, jobs, error handler
+│   │   ├── handlers/            #   start, jobs, housing, land/construction, admin panel, error handler
 │   │   ├── keyboards/           #   inline keyboard builders + callback ids
 │   │   ├── messages/            #   ALL player-facing Persian texts
 │   │   ├── middleware/          #   cross-cutting update processing
@@ -116,12 +130,15 @@ iran_life_bot/
 │   │   ├── logging.py           # structured logging + secret redaction
 │   │   └── constants.py         # starting values, tunable XP curve, limits
 │   ├── database/
-│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, JobEvent, ...)
+│   │   ├── models/              # SQLAlchemy ORM models (Player, Job, House, Land, ...)
 │   │   ├── repositories/        # the only layer that queries the DB
 │   │   ├── database.py          # async engine + session factory
 │   │   └── migrations/          # migration strategy notes (Alembic later)
 │   ├── game/
 │   │   ├── player/              # pure domain: progression math, DTOs
+│   │   ├── housing/             # pure domain: city catalog, dynamic pricing, DTOs
+│   │   ├── realestate/          # pure domain: land pricing, construction, renovation
+│   │   ├── admin/               # pure domain: runtime knobs, Persian-number parsing, DTOs
 │   │   └── shared/              # shared domain errors
 │   └── services/                # business logic + transaction boundaries
 ├── tests/                       # pytest suite
@@ -191,12 +208,167 @@ Settling with the employer triggers a random **employer-behaviour event**:
 Every event (payments, bonuses, penalties and delayed payments) is saved to the
 `job_events` table and shown in 📜 تاریخچه تسویه‌ها.
 
+## Housing and Real-Estate System 🏠
+
+Players own real houses with realistic properties, prices are **always computed
+dynamically** — nothing is ever a fixed number — and the whole market is
+**player-to-player** (no NPC buyers, sellers, landlords or tenants).
+
+### Houses
+
+Every house has a unique ID plus a full property list: city, neighborhood,
+area (m²), bedrooms, living rooms, bathrooms, kitchen type (مدرن/معمولی/قدیمی),
+construction year (سال ساخت, Solar Hijri — e.g. ۱۳۹۵), parking, elevator,
+storage and a quality level (عالی/خوب/متوسط/ضعیف). The building's age is
+never stored — it is derived internally as
+``current_iranian_year() − construction_year`` wherever needed, while the UI
+only ever shows the construction year.
+
+### Dynamic pricing
+
+The price of a house is recomputed from its attributes and the market catalog
+every time it is shown:
+
+```
+price = base_price_per_sqm(city) × neighborhood_multiplier × area
+      × size_factor × construction-year depreciation (floor 45%) × facility_bonus
+      × kitchen_factor × quality_factor × market_factor × per-house jitter
+```
+
+* `app/game/housing/catalog.py` holds the Iranian cities (تهران، مشهد، اصفهان،
+  شیراز، تبریز، کرج، قم، اهواز، رشت، یزد) with their neighborhoods and
+  multipliers — **this file is the single connection point for a future live
+  feed of the real Iranian housing market**: refresh it and every price in the
+  game moves automatically.
+* Rent follows the Iranian رهن/اجاره model: a bigger refundable deposit (رهن)
+  lowers the monthly rent (اجاره).
+
+### Buying, selling and renting
+
+| Flow | How it works |
+|------|--------------|
+| Buy from the market | Ownerless houses (bank/developer) cost their live dynamic price. |
+| Sell to players | Owner picks a price preset (85%–130% of live value) → other players buy it. Money and ownership move in **one atomic transaction**. |
+| Rent to players | Owner picks a رهن/اجاره preset → a tenant signs a **rental contract** (stored with both parties), pays the deposit, then pays monthly rent via 💵 پرداخت اجاره. Either side can end the contract. |
+| Assets | Owned houses are the player's assets — 🏠 خانه‌های من shows every house plus the total live value. |
+
+Buying a house explicitly grants XP through the LevelService (never implicitly).
+
+### Housing screens (all button-driven)
+
+Send **«خانه»** (or use 🏠 خانه in the main menu):
+
+* 🏠 خانه‌های من — assets + manage (فروش / اجاره‌دادن / لغو آگهی / پایان قرارداد)
+* 🏖️ بازار مسکن — every purchasable house with ℹ️ and 🛒 buttons
+* 🛏️ خانه‌های اجاره‌ای — rent offers from other players
+* 📜 قراردادهای اجاره من — your contracts, rent payments and endings
+* ℹ️ اطلاعات خانه — the full property sheet for any house
+
+## Land, Construction and Renovation System 🌍🏗️🛠️
+
+Everything starts with land. Land trades with **fully dynamic prices**, houses
+are **built over real time** (never instantly) and renovations **raise
+property value** by changing the very attributes the dynamic pricing engine
+reads.
+
+### Land
+
+Every parcel has a unique ID, an owner, city, neighborhood, size (m²) and a
+location-quality label (لوکس/عالی/خوب/متوسط derived from the neighborhood).
+The market value is always recomputed live:
+
+```
+price = base_price_per_sqm(city) × LAND_RATIO(0.45) × neighborhood
+      × size × wholesale_size_discount × market_factor × per-parcel jitter
+```
+
+``market_factor`` is the shared **economy knob**
+(``constants.ECONOMY_MARKET_CONDITIONS``) — land prices, construction costs
+and renovation costs all move together when the economy moves. This is the
+future integration point for the Inflation/Economy system (and for real
+Iranian market data, through the same housing catalog).
+
+### Building on your land (🏗️ ساخت خانه)
+
+A fully button-driven wizard picks: building type (آپارتمانی ۲–۴ طبقه /
+ویلایی) → floors → total built area (bounded by land × floors) → bedrooms →
+material grade (اقتصادی/استاندارد/لوکس) → facilities. Cost depends on size,
+materials, floors, facilities and the live market; duration scales with
+area/quality/floors (days). Money is paid upfront; progress can be followed:
+
+```
+🏗️ Building progress:
+▓▓▓░░░░░░░ 40%
+Time remaining: 6 days
+```
+
+On completion a brand-new House (age 0, chosen quality/kitchen/facilities) is
+created on the parcel and plugs straight into the Housing system — it appears
+in خانه‌های من, can be sold, rented out, and its value is the standard dynamic
+house price. Cancelling an active project refunds 70%. Completion grants XP.
+
+### Renovation (🛠️ بازسازی خانه)
+
+Each owned, tenant-free house offers live-quoted options — raise quality,
+renovate the kitchen, add a bathroom, add a room, add parking/elevator/
+storage, or modernize an old building (advances the construction year).
+Every option costs
+money and takes days; on completion the house attributes change and the
+dynamic pricing engine immediately values it higher (recorded as
+value_before → value_after in the `property_upgrades` audit table).
+
+### Screens
+
+Inside 🏠 خانه: 🌍 زمین‌های من · 🛒 خرید زمین · 🏗️ ساخت خانه · 📈 وضعیت ساخت ·
+🛠️ بازسازی خانه · ℹ️ اطلاعات ملک — plus the Persian text commands «زمین‌های من»،
+«خرید زمین»، «ساخت خانه»، «وضعیت ساخت»، «بازسازی خانه». Completed
+constructions and renovations settle lazily whenever any related screen is
+opened (atomic, race-safe) — a future scheduler can also call
+``RealEstateService.settle_due()`` periodically.
+
+## Admin Panel 🛡️
+
+The `/admin` command opens a fully **button-driven control console** for the
+game's administrators (default: Telegram ID `8154313073`). Everyone else is
+blocked with a polite message, and a middleware layer stops every update from
+banned players with a short notice before any handler runs.
+
+* **📊 Dashboard** — live stats: total/active/banned users, money in
+  circulation, houses, lands, jobs, active listings/contracts/rentals, the
+  live market factor and the server/database health.
+* **👥 Users** — paged list, search (by ID / username / name), full profile,
+  transactions and properties; add/remove money, add/remove XP, set level,
+  ban/unban. Persian digits and suffixes (k/m/B, میلیون/میلیارد) are parsed.
+* **💰 Economy** — inflation rate, base market conditions, currency/gold/
+  crypto assets with price history, timed economic events and a one-tap
+  crisis preset. The **effective market factor** (base × events) drives all
+  house, land, construction and renovation prices live.
+* **🏠 Real estate** — every house/land with edit screens (area, city,
+  construction year, facilities, quality, location, per-property price
+  override), active sale listings (close/remove) and rental contracts
+  (terminate).
+* **💼 Jobs** — create jobs through a guided 6-step flow, edit salary/level/
+  employer, enable/disable jobs, watch active workers.
+* **📈 Trading** — market activity, sale history and rental volume (a full
+  trading exchange stays a future system; the read-side scaffold is ready).
+* **⚙️ Settings** — XP reward bounds/divisors, minimum settle minutes and
+  **feature flags** that instantly enable/disable the jobs and housing
+  systems (menus hide them automatically).
+* **🗄️ Database tools** — stats, one-tap backups (also sent as a file),
+  restore with a confirm step, and safe cleanup of old listings/audit
+  rows/price ticks.
+* **📋 Logs** — the immutable admin-audit trail (who did what, when),
+  user/economy/land/DB action views and the recent error log.
+
+The admin code follows the same architecture (handlers → `AdminService` →
+repositories); every money/XP mutation reuses the existing atomic services,
+and old databases are upgraded additively (no rows dropped).
+
 ## What is intentionally NOT in this stage
 
-Education, skills, housing, vehicles, marriage, businesses, loans,
-investments, markets, inflation, trading, crime, police, prisons,
-bankruptcy, crises and similar systems are **not implemented** — the
-architecture is simply prepared for them.
+Education, skills, vehicles, marriage, businesses, loans, investments,
+markets, a trading exchange, crime, police, prisons and bankruptcy are **not
+implemented** — the architecture is simply prepared for them.
 
 ## Useful Commands
 

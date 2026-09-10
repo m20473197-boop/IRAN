@@ -38,6 +38,26 @@ def build_application(
             logger.info("Initial jobs ensured: %s jobs active", len(jobs))
         except Exception as exc:
             logger.warning("Could not seed initial jobs: %s", exc)
+        # Seed the starter houses for the Housing system
+        try:
+            houses = await services.housing.ensure_initial_houses()
+            logger.info("Initial houses ensured: %s houses on the market", len(houses))
+        except Exception as exc:
+            logger.warning("Could not seed initial houses: %s", exc)
+        # Seed the starter lands for the Land/Construction system
+        try:
+            lands = await services.realestate.ensure_initial_lands()
+            logger.info("Initial lands ensured: %s lands on the market", len(lands))
+        except Exception as exc:
+            logger.warning("Could not seed initial lands: %s", exc)
+        # Seed the admin-panel economy catalog and refresh the runtime cache
+        # (market conditions, inflation, events, reward settings, flags).
+        try:
+            await services.admin.ensure_economy_seeded()
+            factor = await services.admin.refresh_runtime()
+            logger.info("Economy ensured (effective market factor %.4f)", factor)
+        except Exception as exc:
+            logger.warning("Could not seed the economy catalog: %s", exc)
 
     async def on_shutdown(application: Application) -> None:
         await database.dispose()
@@ -53,6 +73,9 @@ def build_application(
 
     application.bot_data["database"] = database
     application.bot_data["services"] = services
+    application.bot_data["admin_ids"] = settings.admin_ids
+    services.attach_database(database)
+    services.admin.set_admin_ids(settings.admin_ids)
     setup_bot(application)
     return application
 

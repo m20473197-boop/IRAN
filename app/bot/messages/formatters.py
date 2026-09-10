@@ -11,3 +11,8 @@ def fa_int(value: int) -> str:
 def money(value: int) -> str:
     """Format a money amount, e.g. «۱٬۵۰۰٬۰۰۰ تومان»."""
     return f"{fa_int(value)} تومان"
+
+
+def fa_year(value: int) -> str:
+    """Format a year (Persian digits, *no* thousands separator), e.g. ۱۳۹۵."""
+    return str(value).translate(_DIGIT_MAP)

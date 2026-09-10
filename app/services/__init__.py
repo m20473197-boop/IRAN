@@ -12,17 +12,22 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.services.admin_service import AdminService
+from app.services.housing_service import HousingService
 from app.services.job_service import JobService
 from app.services.level_service import LevelService
 from app.services.money_service import MoneyService
 from app.services.player_service import PlayerService
+from app.services.realestate_service import RealEstateService
 
 __all__ = [
     "ServiceRegistry",
+    "AdminService",
     "PlayerService",
     "LevelService",
     "MoneyService",
     "JobService",
+    "HousingService",
 ]
 
 
@@ -34,3 +39,17 @@ class ServiceRegistry:
         self.levels = LevelService(session_factory)
         self.money = MoneyService(session_factory)
         self.jobs = JobService(session_factory, money_service=self.money)
+        self.housing = HousingService(session_factory, level_service=self.levels)
+        self.realestate = RealEstateService(
+            session_factory, level_service=self.levels, housing_service=self.housing
+        )
+        self.admin = AdminService(
+            session_factory,
+            level_service=self.levels,
+            housing_service=self.housing,
+            realestate_service=self.realestate,
+        )
+
+    def attach_database(self, database) -> None:
+        """Hand engine access to services that need it (admin backup/restore)."""
+        self.admin.attach_database(database)

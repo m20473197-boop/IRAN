@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import constants
@@ -40,6 +40,10 @@ class Player(Base):
     xp: Mapped[int] = mapped_column(nullable=False, default=constants.STARTING_XP)
     money: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=constants.STARTING_MONEY
+    )
+
+    is_banned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0")
     )
 
     created_at: Mapped[datetime] = mapped_column(

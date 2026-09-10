@@ -11,6 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.bot.context import get_services
+from app.bot.handlers.guards import requires_feature
 from app.bot.keyboards import build_jobs_list, build_jobs_menu, callbacks
 from app.bot.messages import job as job_messages
 from app.bot.messages import errors as error_messages
@@ -41,6 +42,7 @@ async def _resolve_player_id(services, tg_id: int) -> int | None:
         return player.id if player is not None else None
 
 
+@requires_feature("jobs")
 async def show_jobs_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.JOBS_MENU:
@@ -52,6 +54,7 @@ async def show_jobs_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+@requires_feature("jobs")
 async def show_jobs_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.JOBS_LIST:
@@ -66,6 +69,7 @@ async def show_jobs_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+@requires_feature("jobs")
 async def show_my_job(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.JOBS_MY_JOB:
@@ -94,6 +98,7 @@ async def show_my_job(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+@requires_feature("jobs")
 async def settle_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """💰 تسویه با صاحبکار — settle the accrued salary."""
     query = update.callback_query
@@ -131,6 +136,7 @@ async def settle_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
+@requires_feature("jobs")
 async def leave_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.JOBS_LEAVE:
@@ -163,6 +169,7 @@ async def leave_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
+@requires_feature("jobs")
 async def apply_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or not query.data.startswith(callbacks.JOBS_APPLY_PREFIX):
@@ -214,6 +221,7 @@ async def apply_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
+@requires_feature("jobs")
 async def show_job_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.data != callbacks.JOBS_HISTORY:
@@ -245,6 +253,7 @@ async def show_job_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # --- Persian command handlers ----------------------------------------
 
 
+@requires_feature("jobs")
 async def jobs_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle 'مشاغل' — show available jobs."""
     if update.message is None or update.effective_user is None:
@@ -270,6 +279,7 @@ async def jobs_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text(error_messages.GENERIC)
 
 
+@requires_feature("jobs")
 async def my_job_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle 'شغل من' — show current job."""
     if update.message is None or update.effective_user is None:
@@ -294,6 +304,7 @@ async def my_job_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(error_messages.GENERIC)
 
 
+@requires_feature("jobs")
 async def leave_job_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle 'ترک کار' — leave current job."""
     if update.message is None or update.effective_user is None:
@@ -321,6 +332,7 @@ async def leave_job_text_handler(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(error_messages.GENERIC)
 
 
+@requires_feature("jobs")
 async def apply_job_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle 'استخدام' — apply for a job.
 
