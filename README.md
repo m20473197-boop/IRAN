@@ -228,6 +228,39 @@ Settling with the employer triggers a random **employer-behaviour event**:
 Every event (payments, bonuses, penalties and delayed payments) is saved to the
 `job_events` table and shown in 📜 تاریخچه تسویه‌ها.
 
+## Business System (کسب و کار) 🏪
+
+Players run businesses from a **predefined, configurable catalog** — arbitrary
+custom businesses are not allowed. The whole list lives in
+``constants.BUSINESS_CATALOG`` (add an entry, retune a price or an income band
+there — the menu, the confirmations and the rolls all follow the data). Each
+entry carries: name, Persian description, **startup cost**, **min/max daily
+income** and an ``available`` switch.
+
+- **Start:** «کسب و کار» / «بیزینس» (or the inline menu) → pick a business →
+  confirmation screen → the startup cost is charged **through the existing
+  MoneyService** (atomic, refuses when the wallet can't pay — with the exact
+  shortfall shown). A player may own at most ``BUSINESS_MAX_OWNED`` (2 by
+  default, configurable).
+- **Daily income:** every active business earns once per Iranian calendar day
+  (UTC+3:30). The amount is **rolled randomly inside the type's configured
+  band** — some days less, some days more, never a fixed number. The income
+  is credited to the **business' own balance, never to the player's wallet**;
+  the once-per-day rule is enforced by a guarded ``UPDATE`` in the repository
+  so the same day can never be paid twice, even under concurrent taps.
+- **View:** «کسب‌وکارهای من» shows every owned business with startup cost,
+  current balance, start date and today's income state; each business has its
+  own detail screen (total income, paid days).
+
+Tables: ``businesses`` (id, owner, catalog key + name snapshot, startup cost,
+balance, status ``active|closed``, created date, last income date/amount,
+lifetime income). Architecture stays strict: handlers → ``BusinessService`` →
+``BusinessRepository`` → DB, and all player money flows through the wallet.
+
+> Employee hiring (استخدام نیرو), salaries, taxes, loans and trading are
+> explicitly **not** part of this system yet — the business runs without a
+> workforce and the API deliberately has no hiring surface.
+
 ## Housing and Real-Estate System 🏠
 
 Players own real houses with realistic properties, prices are **always computed

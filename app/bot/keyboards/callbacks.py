@@ -18,6 +18,16 @@ JOBS_LEAVE: str = "jobs_leave"
 JOBS_APPLY_PREFIX: str = "jobs_apply_"  # + job_id
 JOBS_HISTORY: str = "jobs_history"
 
+# Business system («کسب و کار»)
+BUSINESS_MENU: str = "biz_menu"
+BUSINESS_LIST: str = "biz_list"                      # predefined catalog
+BUSINESS_MINE: str = "biz_mine"                      # my businesses
+BUSINESS_COLLECT: str = "biz_collect"                # grant today's income (all)
+BUSINESS_START_PREFIX: str = "biz_start_"            # + key (confirmation screen)
+BUSINESS_OPEN_PREFIX: str = "biz_open_"              # + key (executes the start)
+BUSINESS_VIEW_PREFIX: str = "biz_view_"              # + business_id (detail)
+BUSINESS_COLLECT_ONE_PREFIX: str = "biz_collect1_"   # + business_id
+
 # Housing / Real-estate system
 HOUSING_MENU: str = "h_menu"
 HOUSES_MY: str = "h_my"                    # my houses / assets

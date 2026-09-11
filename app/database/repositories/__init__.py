@@ -4,6 +4,9 @@ from app.database.repositories.admin_audit_log_repository import (
     AdminAuditLogRepository,
 )
 from app.database.repositories.bot_setting_repository import BotSettingRepository
+from app.database.repositories.business_repository import (
+    BusinessRepository,
+)
 from app.database.repositories.child_repository import ChildRepository
 from app.database.repositories.divorce_record_repository import (
     DivorceRecordRepository,
@@ -84,4 +87,5 @@ __all__ = [
     "DivorceRecordRepository",
     "RelationshipEventRepository",
     "FamilyHistoryRepository",
+    "BusinessRepository",
 ]

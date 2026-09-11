@@ -238,3 +238,84 @@ FAMILY_BOY_NAMES: tuple[str, ...] = (
 FAMILY_GIRL_NAMES: tuple[str, ...] = (
     "آوینا", "نگار", "یاسمن", "هستی", "پریسا", "آبان", "رویا", "مانلی",
 )
+
+# --- Business system (کسب و کار) ----------------------------------------------
+# The predefined business catalog — the *only* businesses a player can start
+# (player-created custom businesses are intentionally not supported). This is
+# the game-configuration data: add/remove/retune entries here (or override in
+# the deployment environment later) and the whole system follows — the menu,
+# the prices and the income ranges are all rendered from it.
+#
+# Field rules:
+#   key             stable ascii id used by callbacks and stored on rows
+#   name            the Persian display name (snapshot-copied onto business rows)
+#   description     one casual Persian line shown in the menu
+#   startup_cost    exact Toman charged from the wallet at start (must be > 0)
+#   min/max_daily_income  the inclusive range the daily roll draws from —
+#                   every day lands somewhere else in the band, never fixed
+#   available       set False to hide a business and block new starts
+
+BUSINESS_CATALOG: tuple[dict, ...] = (
+    {
+        "key": "fruit_stand",
+        "name": "میوه‌فروشی",
+        "description": "یه دکه کوچیک سر کوچه؛ سرمایه کم، دردسر کم",
+        "startup_cost": 500_000,
+        "min_daily_income": 10_000,
+        "max_daily_income": 35_000,
+        "available": True,
+    },
+    {
+        "key": "bakery",
+        "name": "نانوایی",
+        "description": "نون تازه هر صبح؛ مشتری‌های همیشگی داری",
+        "startup_cost": 1_200_000,
+        "min_daily_income": 25_000,
+        "max_daily_income": 65_000,
+        "available": True,
+    },
+    {
+        "key": "supermarket",
+        "name": "سوپرمارکت",
+        "description": "خرده‌فروشی محله؛ پول‌های ریز ولی هر روز",
+        "startup_cost": 2_000_000,
+        "min_daily_income": 40_000,
+        "max_daily_income": 100_000,
+        "available": True,
+    },
+    {
+        "key": "clothing_store",
+        "name": "فروشگاه لباس",
+        "description": "پاخور خوب یعنی سود خوب؛ فصل‌ها مهمن",
+        "startup_cost": 3_200_000,
+        "min_daily_income": 60_000,
+        "max_daily_income": 150_000,
+        "available": True,
+    },
+    {
+        "key": "phone_repair",
+        "name": "تعمیرگاه موبایل",
+        "description": "تخصص می‌خواد ولی نقدینگش بالاتره",
+        "startup_cost": 2_800_000,
+        "min_daily_income": 55_000,
+        "max_daily_income": 130_000,
+        "available": True,
+    },
+    {
+        "key": "coffee_shop",
+        "name": "کافیشاپ",
+        "description": "جای نشستن و سفارش دادن؛ راه‌اندازیش سنگین‌ه",
+        "startup_cost": 4_000_000,
+        "min_daily_income": 80_000,
+        "max_daily_income": 190_000,
+        "available": True,
+    },
+)
+
+# How many businesses a single player may own at the same time.
+BUSINESS_MAX_OWNED: int = 2
+
+# Fixed UTC offset of Iran Standard Time (no DST since 1402) — the business
+# day boundary used to grant daily income exactly once per calendar day in
+# Iran. See app/game/business/rules.py.
+BUSINESS_TEHARAN_UTC_OFFSET_MINUTES: int = 210

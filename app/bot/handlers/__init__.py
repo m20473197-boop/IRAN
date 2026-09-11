@@ -14,6 +14,7 @@ from telegram.ext import (
 from app.bot.handlers import (
     admin,
     admin_panel,
+    business,
     family,
     housing,
     job,
@@ -237,6 +238,63 @@ def register_handlers(application: Application) -> None:
     application.add_handler(
         CallbackQueryHandler(
             job.apply_job_callback, pattern=rf"^{callbacks.JOBS_APPLY_PREFIX}\d+$"
+        )
+    )
+
+    # Business system («کسب و کار») — text trigger opens the menu, and the
+    # inline screens are callback-driven like jobs/housing.
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT
+            & filters.Regex(
+                f"^({business.BUSINESS_TEXT_TRIGGER}|{business.BUSINESS_ALIAS_TRIGGER})$"
+            ),
+            business.business_text_handler,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.business_menu_callback,
+            pattern=rf"^{callbacks.BUSINESS_MENU}$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.catalog_callback, pattern=rf"^{callbacks.BUSINESS_LIST}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.mine_callback, pattern=rf"^{callbacks.BUSINESS_MINE}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.collect_callback, pattern=rf"^{callbacks.BUSINESS_COLLECT}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.confirm_start_callback,
+            pattern=rf"^{callbacks.BUSINESS_START_PREFIX}[a-z0-9_]+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.open_business_callback,
+            pattern=rf"^{callbacks.BUSINESS_OPEN_PREFIX}[a-z0-9_]+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.detail_callback,
+            pattern=rf"^{callbacks.BUSINESS_VIEW_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.collect_one_callback,
+            pattern=rf"^{callbacks.BUSINESS_COLLECT_ONE_PREFIX}\d+$",
         )
     )
 
