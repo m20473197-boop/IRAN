@@ -8,6 +8,14 @@
 - `create_all` only **adds missing tables** — it never drops or alters
   existing data, so player data survives bot restarts.
 
+The Marriage & Family update follows the same strategy: six new tables
+(``marriages``, ``marriage_proposals``, ``divorce_records``,
+``relationship_events``, ``children``, ``family_histories``) arrive via
+``create_all``, and four additive columns (``players.marriage_status``,
+``players.spouse_player_id``, ``players.married_at``,
+``players.children_count``) are backfilled by the idempotent
+``_SQLITE_COLUMN_MIGRATIONS`` step — old player data is never touched.
+
 ## Renames & data conversions (lightweight, idempotent)
 
 A few schema changes beyond plain additions are handled by the same

@@ -27,6 +27,9 @@ from app.services.job_service import (
 logger = logging.getLogger(__name__)
 
 JOBS_TEXT_TRIGGER = "مشاغل"
+# Alias trigger: the system is called «خر حمالی» now (old «مشاغل» kept for
+# players who already know it).
+JOBS_TITLE_TRIGGER = "خر حمالی"
 MY_JOB_TEXT_TRIGGER = "شغل من"
 LEAVE_JOB_TEXT_TRIGGER = "ترک کار"
 APPLY_JOB_TEXT_TRIGGER = "استخدام"
@@ -184,7 +187,7 @@ async def apply_job_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         job_id_str = query.data[len(callbacks.JOBS_APPLY_PREFIX) :]
         job_id = int(job_id_str)
     except ValueError:
-        await query.answer(text="شناسه شغل نامعتبر است.", show_alert=True)
+        await query.answer(text="شناسه کار نامعتبر است.", show_alert=True)
         return
 
     player_id = await _resolve_player_id(services, tg_id)

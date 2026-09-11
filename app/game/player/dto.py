@@ -23,6 +23,12 @@ class ProfileData:
     xp_needed_for_next: int = 0
     progress_percent: float = 0.0
     total_xp_for_next_level: int = 0
+    # Marriage & Family block (defaults = single, no family data yet)
+    marriage_status: str = "single"
+    spouse_player_id: int | None = None
+    spouse_display_name: str | None = None
+    married_at: datetime | None = None
+    children_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)

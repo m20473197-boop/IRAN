@@ -25,31 +25,82 @@ MAX_DISPLAY_NAME_LENGTH: int = 64
 MAX_USERNAME_LENGTH: int = 32
 MAX_XP_REASON_LENGTH: int = 128
 
-# --- Job system -------------------------------------------------------------
-# Initial jobs — stored in DB, values here are used for seeding
-JOB_WORKER_NAME: str = "کارگر"
-JOB_WORKER_DESCRIPTION: str = "کار ساده با درآمد کم"
-JOB_WORKER_SALARY: int = 50_000
-JOB_WORKER_COOLDOWN: int = 5 * 60  # 5 minutes
-JOB_WORKER_REQUIRED_LEVEL: int = 1
-JOB_WORKER_HOURLY_SALARY: int = 60_000  # Toman per hour
-JOB_WORKER_EMPLOYER: str = "کارگاه حاج رضا"
+# --- Job system («خر حمالی») --------------------------------------------------
+# Initial jobs — stored in DB, values here are used for seeding.
+# The player-facing name of the system: the old label «شغل» was renamed to
+# «خر حمالی» (internal ids/callbacks stay stable; only player-facing texts,
+# buttons and menus use this title).
+JOB_SYSTEM_TITLE: str = "خر حمالی"
 
-JOB_EMPLOYEE_NAME: str = "کارمند"
-JOB_EMPLOYEE_DESCRIPTION: str = "کار اداری با درآمد متوسط"
-JOB_EMPLOYEE_SALARY: int = 100_000
-JOB_EMPLOYEE_COOLDOWN: int = 10 * 60  # 10 minutes
-JOB_EMPLOYEE_REQUIRED_LEVEL: int = 2
-JOB_EMPLOYEE_HOURLY_SALARY: int = 120_000  # Toman per hour
-JOB_EMPLOYEE_EMPLOYER: str = "شرکت بازرگانی آریا"
+# The canonical job catalog. Salary values are exact Toman per hour; the
+# time-based settlement only uses ``hourly_salary`` — ``salary`` and
+# ``cooldown`` are the legacy schema fields (mirrored for completeness).
+JOB_CATALOG: tuple[dict, ...] = (
+    {
+        "name": "بنایی",
+        "description": "کار ساختمانی؛ ملات‌کاری و باربری در کارگاه",
+        "salary": 80_000,
+        "hourly_salary": 80_000,  # Toman per hour
+        "employer": "شرکت ساختمانی آجر",
+        "cooldown": 5 * 60,  # 5 minutes
+        "required_level": 1,
+    },
+    {
+        "name": "رستوران",
+        "description": "کار در آشپزخانه و سالن پذیرایی رستوران",
+        "salary": 70_000,
+        "hourly_salary": 70_000,  # Toman per hour
+        "employer": "رستوران سنتی شاندیز",
+        "cooldown": 5 * 60,  # 5 minutes
+        "required_level": 1,
+    },
+    {
+        "name": "فروشندگی",
+        "description": "فروش در مغازه و ارتباط با مشتری",
+        "salary": 90_000,
+        "hourly_salary": 90_000,  # Toman per hour
+        "employer": "پاساژ آرمان",
+        "cooldown": 10 * 60,  # 10 minutes
+        "required_level": 2,
+    },
+    {
+        "name": "پیک موتوری",
+        "description": "رساندن بسته‌ها با موتور در سراسر شهر",
+        "salary": 120_000,
+        "hourly_salary": 120_000,  # Toman per hour
+        "employer": "شبکه پیک شهر",
+        "cooldown": 10 * 60,  # 10 minutes
+        "required_level": 3,
+    },
+    {
+        "name": "اسنپ",
+        "description": "مسافرکشی با خودروی شخصی",
+        "salary": 160_000,
+        "hourly_salary": 160_000,  # Toman per hour
+        "employer": "اسنپ",
+        "cooldown": 15 * 60,  # 15 minutes
+        "required_level": 5,
+    },
+    {
+        "name": "کارمند بانک",
+        "description": "کار پشت باجه و امور مشتریان بانک",
+        "salary": 220_000,
+        "hourly_salary": 220_000,  # Toman per hour
+        "employer": "بانک شهر — شعبه مرکزی",
+        "cooldown": 15 * 60,  # 15 minutes
+        "required_level": 8,
+    },
+)
 
-JOB_SPECIALIST_NAME: str = "متخصص"
-JOB_SPECIALIST_DESCRIPTION: str = "کار تخصصی با درآمد بالا"
-JOB_SPECIALIST_SALARY: int = 200_000
-JOB_SPECIALIST_COOLDOWN: int = 15 * 60  # 15 minutes
-JOB_SPECIALIST_REQUIRED_LEVEL: int = 3
-JOB_SPECIALIST_HOURLY_SALARY: int = 240_000  # Toman per hour
-JOB_SPECIALIST_EMPLOYER: str = "هلدینگ فناوری پارس"
+# Legacy selectable jobs retired by the catalog update. They are disabled on
+# existing databases (never deleted — old job history keeps pointing at them).
+JOB_RETIRED_NAMES: tuple[str, ...] = ("کارگر", "کارمند", "متخصص")
+
+# Catalog version marker (stored in ``bot_settings``). Bump it when
+# ``JOB_CATALOG`` changes so every database re-syncs once; afterwards admin
+# edits of jobs survive restarts untouched.
+JOB_CATALOG_VERSION: str = "v2"
+JOBS_CATALOG_SETTING_KEY: str = "jobs_catalog_version"
 
 # --- Time-based salary settlement -------------------------------------------
 # A settlement is only possible after at least this many whole minutes of work.
@@ -126,3 +177,64 @@ CONSTRUCTION_XP_REASON: str = "تکمیل ساخت ملک"
 # Cancelling an in-progress construction refunds this share of the paid cost
 # (the rest is wasted materials/permits).
 CONSTRUCTION_CANCEL_REFUND_PERCENT: int = 70
+
+# --- Marriage & Family system --------------------------------------------------
+# All amounts are exact integer Toman; all chances are percents rolled with
+# ``random.randint(1, 100) <= chance`` (see app/game/family/family.py).
+
+# Minimum level required before a player may propose marriage.
+FAMILY_MIN_LEVEL_TO_MARRY: int = 3
+
+# Mahriyeh (مهریه): agreed at the proposal («ازدواج [amount]»), stored on the
+# marriage, paid through the wallet system when a divorce is finalized.
+FAMILY_DEFAULT_MAHRIYEH: int = 500_000
+FAMILY_MAHR_MIN: int = 0
+FAMILY_MAHR_MAX: int = 5_000_000_000
+
+# How long a marriage proposal waits for its answer before it lapses.
+FAMILY_PROPOSAL_EXPIRY_SECONDS: int = 24 * 60 * 60
+
+# Relationship points of a fresh marriage and its bounds (0 = collapsed).
+FAMILY_RELATIONSHIP_START_POINTS: int = 100
+FAMILY_RELATIONSHIP_MAX_POINTS: int = 100
+FAMILY_RELATIONSHIP_MIN_POINTS: int = 0
+
+# Relationship-point movements (per event, no randomness).
+FAMILY_RELATIONSHIP_EVENT_HEAL: int = 5  # a nice «رابطه» day heals +5
+FAMILY_CHEAT_RELATIONSHIP_DAMAGE: int = 35  # one discovered betrayal burns −35
+FAMILY_FORGIVENESS_HEAL: int = 15  # «بخشش» after a pending divorce
+
+# Cheating («خیانت»): two independent rolls — success of the affair itself
+# and the chance that the spouse finds out about it.
+FAMILY_CHEAT_SUCCESS_CHANCE: int = 55
+FAMILY_CHEAT_DISCOVER_CHANCE: int = 35
+# Cooldown between two attempts, so the roll cannot be spammed.
+FAMILY_CHEAT_COOLDOWN_SECONDS: int = 60 * 60
+# Consequences when discovered: social fine (wallet) + reputation XP loss.
+FAMILY_CHEAT_SOCIAL_FINE: int = 300_000
+FAMILY_CHEAT_XP_LOSS: int = 80
+# Discovered betrayals that make the *cheater* liable for the Mahriyeh when
+# the betrayed spouse files for divorce.
+FAMILY_CHEAT_MIN_FOR_MAHR_LIABILITY: int = 1
+
+# «رابطه» → pregnancy chance and its cooldown.
+FAMILY_PREGNANCY_CHANCE: int = 20
+FAMILY_RELATIONSHIP_COOLDOWN_SECONDS: int = 2 * 60 * 60
+
+# A filed divorce request can be forgiven («بخشش») for this long; after that
+# a repeated «طلاق» finalizes it.
+FAMILY_DIVORCE_COOLDOWN_SECONDS: int = 24 * 60 * 60
+
+# XP rewards (granted explicitly through LevelService — never implicitly).
+FAMILY_XP_FOR_MARRIAGE: int = 250
+FAMILY_XP_FOR_MARRIAGE_REASON: str = "ازدواج"
+FAMILY_XP_FOR_CHILD_BIRTH: int = 200
+FAMILY_XP_FOR_CHILD_BIRTH_REASON: str = "تولد فرزند"
+
+# Baby names drawn for a newborn (gender prefix marks the name's gender).
+FAMILY_BOY_NAMES: tuple[str, ...] = (
+    "آرین", "سورن", "کیان", "بردیا", "سام", "نیما", "آرش", "پویا",
+)
+FAMILY_GIRL_NAMES: tuple[str, ...] = (
+    "آوینا", "نگار", "یاسمن", "هستی", "پریسا", "آبان", "رویا", "مانلی",
+)

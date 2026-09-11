@@ -13,6 +13,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.services.admin_service import AdminService
+from app.services.family_service import FamilyService
 from app.services.housing_service import HousingService
 from app.services.job_service import JobService
 from app.services.level_service import LevelService
@@ -28,6 +29,7 @@ __all__ = [
     "MoneyService",
     "JobService",
     "HousingService",
+    "FamilyService",
 ]
 
 
@@ -43,6 +45,11 @@ class ServiceRegistry:
         self.realestate = RealEstateService(
             session_factory, level_service=self.levels, housing_service=self.housing
         )
+        # Marriage & Family system — pure commands, no menus. Reuses the
+        # LevelService for family XP; profile integration reads the family
+        # snapshot through the provider below.
+        self.family = FamilyService(session_factory, level_service=self.levels)
+        self.players.set_family_provider(self.family.get_snapshot_by_telegram_user_id)
         self.admin = AdminService(
             session_factory,
             level_service=self.levels,

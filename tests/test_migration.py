@@ -53,20 +53,39 @@ async def test_existing_database_gains_new_job_columns(tmp_path):
     await database.dispose()
 
 
-async def test_existing_job_rows_are_backfilled_with_salary_and_employer(tmp_path):
+async def test_existing_database_gets_the_new_catalog_and_retires_old_jobs(tmp_path):
+    """The «خر حمالی» catalog replaces the legacy jobs on old databases.
+
+    The seeded legacy row (کارگر, 50 000, no employer) must NOT keep a
+    selectable job: the catalog sync disables retired jobs and seeds the
+    six canonical ones — without dropping the old row (history integrity).
+    """
     db_path = tmp_path / "old.db"
     _create_old_schema_jobs(db_path.as_posix())
 
     database = Database(f"sqlite+aiosqlite:///{db_path.as_posix()}")
     await database.create_all()
 
+    from app.core import constants
     from app.services import ServiceRegistry
 
     services = ServiceRegistry(database.session_factory)
     jobs = await services.jobs.ensure_initial_jobs()
 
-    worker = next(j for j in jobs if j.name == "کارگر")
-    assert worker.hourly_salary > 0
-    assert worker.employer.strip() != ""
+    assert {j.name for j in jobs} == {spec["name"] for spec in constants.JOB_CATALOG}
+    banaei = next(j for j in jobs if j.name == "بنایی")
+    assert banaei.hourly_salary == 80_000
+    assert banaei.employer.strip() != ""
+
+    # the retired row survives — disabled, not deleted
+    async with database.session_factory() as session:
+        from sqlalchemy import select
+
+        from app.database.models.job import Job
+
+        worker = (
+            await session.execute(select(Job).where(Job.name == "کارگر"))
+        ).scalar_one()
+        assert worker.is_active is False
 
     await database.dispose()

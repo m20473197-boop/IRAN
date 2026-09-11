@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.bot.messages.formatters import fa_int, money
+from app.bot.messages.formatters import fa_int, fa_year, money
 from app.game.player.dto import ProfileData, StatusData
 
 
@@ -42,7 +42,7 @@ def _format_progress(percent: float) -> str:
 
 
 def profile_text(profile: ProfileData) -> str:
-    """The profile screen — simple progression display."""
+    """The profile screen — simple progression display + the family block."""
     # Fallback for old data where extended fields are 0
     xp_needed = profile.xp_needed_for_next or 0
     xp_in = profile.xp_in_current_level
@@ -58,7 +58,34 @@ def profile_text(profile: ProfileData) -> str:
         f"📊 درصد پیشرفت: {_format_progress(progress)}\n"
         f"🎯 XP کل برای لول بعد: {fa_int(total_next)}\n"
         f"💰 موجودی: {money(profile.money)}"
+        f"\n{marriage_lines(profile)}"
     )
+
+
+# --- Marriage & Family block ----------------------------------------------------
+
+_STATUS_LABELS = {
+    "single": "مجرد",
+    "married": "متأهل",
+    "divorced": "مطلقه",
+}
+
+
+def marriage_lines(profile: ProfileData) -> str:
+    """The family section of the profile (no buttons — profile text only)."""
+    status = _STATUS_LABELS.get(profile.marriage_status, profile.marriage_status or "مجرد")
+    lines = ["━━━━━━━━━━━━━━━", f"💍 وضعیت تأهل: {status}"]
+    if profile.marriage_status == "married" and profile.spouse_display_name:
+        married_year = ""
+        if profile.married_at is not None:
+            from app.game.housing.construction_year import current_iranian_year
+
+            married_year = f" ({fa_year(current_iranian_year(profile.married_at))})"
+        lines.append(f"❤️ همسر: {profile.spouse_display_name}{married_year}")
+    if profile.marriage_status == "divorced":
+        lines.append("💔 از هم جدا شده‌اید")
+    lines.append(f"👶 فرزندان: {fa_int(profile.children_count)}")
+    return "\n".join(lines)
 
 
 def status_text(status: StatusData) -> str:

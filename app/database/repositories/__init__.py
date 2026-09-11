@@ -4,6 +4,13 @@ from app.database.repositories.admin_audit_log_repository import (
     AdminAuditLogRepository,
 )
 from app.database.repositories.bot_setting_repository import BotSettingRepository
+from app.database.repositories.child_repository import ChildRepository
+from app.database.repositories.divorce_record_repository import (
+    DivorceRecordRepository,
+)
+from app.database.repositories.family_history_repository import (
+    FamilyHistoryRepository,
+)
 from app.database.repositories.construction_project_repository import (
     ConstructionProjectRepository,
 )
@@ -26,6 +33,10 @@ from app.database.repositories.job_event_repository import JobEventRepository
 from app.database.repositories.job_history_repository import JobHistoryRepository
 from app.database.repositories.job_repository import JobRepository
 from app.database.repositories.land_repository import LandRepository
+from app.database.repositories.marriage_repository import MarriageRepository
+from app.database.repositories.relationship_event_repository import (
+    RelationshipEventRepository,
+)
 from app.database.repositories.land_transaction_repository import (
     LandTransactionRepository,
 )
@@ -68,4 +79,9 @@ __all__ = [
     "EconomicEventRepository",
     "MarketAssetRepository",
     "MarketPriceTickRepository",
+    "MarriageRepository",
+    "ChildRepository",
+    "DivorceRecordRepository",
+    "RelationshipEventRepository",
+    "FamilyHistoryRepository",
 ]
