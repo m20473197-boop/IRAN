@@ -21,6 +21,7 @@ from app.database.models.land_transaction import LandTransaction
 from app.database.models.level_up_history import LevelUpHistory
 from app.database.models.market_asset import MarketAsset
 from app.database.models.market import MarketAsset as IranMarketAsset, MarketPriceHistory
+from app.database.models.divar_listing import DivarListing
 from app.database.models.market_price_tick import MarketPriceTick
 from app.database.models.marriage import Marriage
 from app.database.models.marriage_proposal import MarriageProposal

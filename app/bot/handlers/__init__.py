@@ -16,6 +16,7 @@ from app.bot.handlers import (
     admin_panel,
     business,
     market,
+    divar,
     family,
     housing,
     job,
@@ -241,6 +242,9 @@ def register_handlers(application: Application) -> None:
             job.apply_job_callback, pattern=rf"^{callbacks.JOBS_APPLY_PREFIX}\d+$"
         )
     )
+
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^دیوار ایران$"), divar.divar_text_handler))
+    application.add_handler(CallbackQueryHandler(divar.callback, pattern=r"^divar:(?:menu|mine|list:(?:house|land))$"))
 
     # Iran market: one shared persisted price screen.
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^بازار ایران$"), market.market_text_handler))
