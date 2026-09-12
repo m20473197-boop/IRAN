@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, func, text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import constants
@@ -40,6 +49,27 @@ class Player(Base):
     xp: Mapped[int] = mapped_column(nullable=False, default=constants.STARTING_XP)
     money: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=constants.STARTING_MONEY
+    )
+
+    # --- Marriage & Family system (denormalized mirror of ``marriages``) ------
+    # The marriage row stays authoritative; these columns exist so profile /
+    # status screens answer without extra queries. They are written only by
+    # FamilyService, inside the same transaction as the marriage change.
+    marriage_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="single", server_default=text("'single'")
+    )  # ``single`` | ``married`` | ``divorced``
+    spouse_player_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("players.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+        index=True,
+    )
+    married_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    children_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
     )
 
     is_banned: Mapped[bool] = mapped_column(

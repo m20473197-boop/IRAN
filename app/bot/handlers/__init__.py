@@ -11,7 +11,18 @@ from telegram.ext import (
     filters,
 )
 
-from app.bot.handlers import admin, admin_panel, housing, job, main_menu, realestate, start
+from app.bot.handlers import (
+    admin,
+    admin_panel,
+    business,
+    market,
+    family,
+    housing,
+    job,
+    main_menu,
+    realestate,
+    start,
+)
 from app.bot.handlers.errors import error_handler
 from app.bot.keyboards import callbacks
 
@@ -77,9 +88,77 @@ def register_handlers(application: Application) -> None:
         )
     )
 
-    # Job system — text messages
+    # Marriage & Family system — text triggers ONLY (command-driven; this
+    # system intentionally has no menus and no inline buttons). Exact-match
+    # regexes so no other text flow of the bot can collide with them.
     application.add_handler(
-        MessageHandler(filters.TEXT & filters.Regex(f"^{job.JOBS_TEXT_TRIGGER}$"), job.jobs_text_handler)
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.MARRY_TEXT_TRIGGER}( .+)?$"),
+            family.marry_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.ACCEPT_TEXT_TRIGGER}$"),
+            family.accept_proposal_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.REJECT_TEXT_TRIGGER}$"),
+            family.reject_proposal_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.DIVORCE_TEXT_TRIGGER}$"),
+            family.divorce_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.FORGIVE_TEXT_TRIGGER}$"),
+            family.forgive_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.CHEAT_TEXT_TRIGGER}$"),
+            family.cheat_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.RELATIONSHIP_TEXT_TRIGGER}$"),
+            family.relationship_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.FAMILY_INFO_TEXT_TRIGGER}$"),
+            family.family_info_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.DIVORCE_HISTORY_TEXT_TRIGGER}$"),
+            family.divorce_history_text_handler,
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & filters.Regex(f"^{family.FAMILY_HISTORY_TEXT_TRIGGER}$"),
+            family.family_history_text_handler,
+        )
+    )
+
+    # Job system («خر حمالی») — text messages
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT
+            & filters.Regex(f"^({job.JOBS_TEXT_TRIGGER}|{job.JOBS_TITLE_TRIGGER})$"),
+            job.jobs_text_handler,
+        )
     )
     application.add_handler(
         MessageHandler(filters.TEXT & filters.Regex(f"^{job.MY_JOB_TEXT_TRIGGER}$"), job.my_job_text_handler)
@@ -160,6 +239,67 @@ def register_handlers(application: Application) -> None:
     application.add_handler(
         CallbackQueryHandler(
             job.apply_job_callback, pattern=rf"^{callbacks.JOBS_APPLY_PREFIX}\d+$"
+        )
+    )
+
+    # Iran market: one shared persisted price screen.
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^بازار ایران$"), market.market_text_handler))
+    application.add_handler(CallbackQueryHandler(market.market_callback, pattern=r"^market:(?:menu|usd|gold|coin|housing)$"))
+
+    # Business system («کسب و کار») — text trigger opens the menu, and the
+    # inline screens are callback-driven like jobs/housing.
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT
+            & filters.Regex(
+                f"^({business.BUSINESS_TEXT_TRIGGER}|{business.BUSINESS_ALIAS_TRIGGER})$"
+            ),
+            business.business_text_handler,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.business_menu_callback,
+            pattern=rf"^{callbacks.BUSINESS_MENU}$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.catalog_callback, pattern=rf"^{callbacks.BUSINESS_LIST}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.mine_callback, pattern=rf"^{callbacks.BUSINESS_MINE}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.collect_callback, pattern=rf"^{callbacks.BUSINESS_COLLECT}$"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.confirm_start_callback,
+            pattern=rf"^{callbacks.BUSINESS_START_PREFIX}[a-z0-9_]+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.open_business_callback,
+            pattern=rf"^{callbacks.BUSINESS_OPEN_PREFIX}[a-z0-9_]+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.detail_callback,
+            pattern=rf"^{callbacks.BUSINESS_VIEW_PREFIX}\d+$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            business.collect_one_callback,
+            pattern=rf"^{callbacks.BUSINESS_COLLECT_ONE_PREFIX}\d+$",
         )
     )
 

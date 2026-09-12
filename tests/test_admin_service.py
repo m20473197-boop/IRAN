@@ -6,6 +6,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
+
+from app.core import constants
 from sqlalchemy import update
 
 from app.database.models.economic_event import EconomicEvent
@@ -70,7 +72,7 @@ async def test_dashboard_aggregates_real_numbers(services, register):
     assert stats.total_money == 1_500_000
     assert stats.houses_count == 30
     assert stats.lands_count == 24
-    assert stats.jobs_count == 3
+    assert stats.jobs_count == len(constants.JOB_CATALOG)
     assert stats.active_sale_listings == 0
     assert stats.market_factor == pytest.approx(1.0)
     assert stats.db_dialect == "sqlite"
@@ -476,7 +478,7 @@ async def _house_orm(services, house_id: int):
 
 async def test_create_update_and_toggle_job(services):
     jobs = await services.admin.list_jobs()
-    assert len(jobs) == 3
+    assert len(jobs) == len(constants.JOB_CATALOG)
 
     created = await services.admin.create_job(
         ADMIN_ID, name="راننده", description="رانندگی در شهر",

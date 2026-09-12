@@ -120,7 +120,7 @@ estate, jobs, trading, settings, database tools and logs — **113 tests**) —
 iran_life_bot/
 ├── app/
 │   ├── bot/                     # Telegram layer (and nothing else)
-│   │   ├── handlers/            #   start, jobs, housing, land/construction, admin panel, error handler
+│   │   ├── handlers/            #   start, jobs, housing, land/construction, family, admin panel, error handler
 │   │   ├── keyboards/           #   inline keyboard builders + callback ids
 │   │   ├── messages/            #   ALL player-facing Persian texts
 │   │   ├── middleware/          #   cross-cutting update processing
@@ -138,6 +138,7 @@ iran_life_bot/
 │   │   ├── player/              # pure domain: progression math, DTOs
 │   │   ├── housing/             # pure domain: city catalog, dynamic pricing, DTOs
 │   │   ├── realestate/          # pure domain: land pricing, construction, renovation
+│   │   ├── family/              # pure domain: marriage/divorce/cheating rules, DTOs
 │   │   ├── admin/               # pure domain: runtime knobs, Persian-number parsing, DTOs
 │   │   └── shared/              # shared domain errors
 │   └── services/                # business logic + transaction boundaries
@@ -183,12 +184,31 @@ Design decisions worth knowing:
   even if it ever appears inside an exception traceback.
 - **No age attribute** exists anywhere in the model — progression is Level + XP only.
 
-## Job and Income System — time-based salary
+## Job and Income System — «خر حمالی», time-based salary
 
-Jobs are no longer a "type `کار` to earn per click" mechanic. Instead, each job
-pays a **hourly salary** from a named **employer** (صاحبکار):
+The job system is called **خر حمالی** for players (the old label «شغل» was
+renamed — internal ids and the existing text triggers «مشاغل» / «شغل من» /
+«ترک کار» / «استخدام …» keep working). The selectable catalog is exactly:
 
-1. Pick a job from 💼 شغل‌ها — the work start time is saved immediately.
+| Job | Level | Hourly salary |
+|-----|-------|----------------|
+| بنایی | 1 | ۸۰٬۰۰۰ تومان |
+| رستوران | 1 | ۷۰٬۰۰۰ تومان |
+| فروشندگی | 2 | ۹۰٬۰۰۰ تومان |
+| پیک موتوری | 3 | ۱۲۰٬۰۰۰ تومان |
+| اسنپ | 5 | ۱۶۰٬۰۰۰ تومان |
+| کارمند بانک | 8 | ۲۲۰٬۰۰۰ تومان |
+
+The legacy catalog («کارگر»، «کارمند»، «متخصص») is **retired**: existing
+databases keep those rows for history but they are disabled (deactivated) —
+never deleted. The sync runs once per catalog version (marker in
+`bot_settings`), so later admin edits of jobs survive restarts.
+
+Jobs are not a "type `کار` to earn per click" mechanic — the time-based
+settlement above is unchanged. Each job pays an **hourly salary** from a named
+**employer** (صاحبکار):
+
+1. Pick a job from 💼 خر حمالی — the work start time is saved immediately.
 2. Working time accrues automatically from that moment.
 3. Press **💰 تسویه با صاحبکار** whenever you want to get paid:
    - the hours worked are calculated,
@@ -207,6 +227,39 @@ Settling with the employer triggers a random **employer-behaviour event**:
 
 Every event (payments, bonuses, penalties and delayed payments) is saved to the
 `job_events` table and shown in 📜 تاریخچه تسویه‌ها.
+
+## Business System (کسب و کار) 🏪
+
+Players run businesses from a **predefined, configurable catalog** — arbitrary
+custom businesses are not allowed. The whole list lives in
+``constants.BUSINESS_CATALOG`` (add an entry, retune a price or an income band
+there — the menu, the confirmations and the rolls all follow the data). Each
+entry carries: name, Persian description, **startup cost**, **min/max daily
+income** and an ``available`` switch.
+
+- **Start:** «کسب و کار» / «بیزینس» (or the inline menu) → pick a business →
+  confirmation screen → the startup cost is charged **through the existing
+  MoneyService** (atomic, refuses when the wallet can't pay — with the exact
+  shortfall shown). A player may own at most ``BUSINESS_MAX_OWNED`` (2 by
+  default, configurable).
+- **Daily income:** every active business earns once per Iranian calendar day
+  (UTC+3:30). The amount is **rolled randomly inside the type's configured
+  band** — some days less, some days more, never a fixed number. The income
+  is credited to the **business' own balance, never to the player's wallet**;
+  the once-per-day rule is enforced by a guarded ``UPDATE`` in the repository
+  so the same day can never be paid twice, even under concurrent taps.
+- **View:** «کسب‌وکارهای من» shows every owned business with startup cost,
+  current balance, start date and today's income state; each business has its
+  own detail screen (total income, paid days).
+
+Tables: ``businesses`` (id, owner, catalog key + name snapshot, startup cost,
+balance, status ``active|closed``, created date, last income date/amount,
+lifetime income). Architecture stays strict: handlers → ``BusinessService`` →
+``BusinessRepository`` → DB, and all player money flows through the wallet.
+
+> Employee hiring (استخدام نیرو), salaries, taxes, loans and trading are
+> explicitly **not** part of this system yet — the business runs without a
+> workforce and the API deliberately has no hiring surface.
 
 ## Housing and Real-Estate System 🏠
 
@@ -326,6 +379,60 @@ constructions and renovations settle lazily whenever any related screen is
 opened (atomic, race-safe) — a future scheduler can also call
 ``RealEstateService.settle_due()`` periodically.
 
+## Marriage and Family System 💍
+
+A complete life-simulation layer **driven entirely by Persian text commands —
+no menus and no buttons are added anywhere**. It integrates with the player,
+wallet, level/XP and profile systems.
+
+### Commands (all plain text messages)
+
+| Command | What it does |
+|---|---|
+| «ازدواج» *(reply to a player)* | Marriage request; optionally with a Mahriyeh: «ازدواج ۵۰۰۰۰۰» |
+| «قبول» | The target accepts the request → both become spouses (marriage date saved, profiles updated) |
+| «رد» | The target rejects the request |
+| «طلاق» | Files a divorce request (a second «طلاق» — by either side — finalizes it) |
+| «بخشش» | Forgive a pending divorce → relationship points are restored |
+| «خیانت» | A **secret** cheating attempt (success + discovery are independent random rolls) |
+| «رابطه» *(reply to your spouse)* | Relationship event with a pregnancy chance → children |
+| «خانواده» | Marriage status, spouse, marriage date, Mahriyeh, children |
+| «سابقه طلاق» / «تاریخچه خانواده» | Stored divorce records / the append-only family log |
+
+### Rules & integration
+
+* **Monogamy**: a married player can never marry again — and a married target
+  is reported as married. A partial unique index enforces one active marriage
+  per player at the database level, so even concurrent accepts cannot create
+  a double marriage.
+* **Mahriyeh (مهریه)** is agreed at the proposal, stored on the marriage, and
+  is settled through the existing atomic wallet primitives (`MoneyService` /
+  `remove_money_if_enough`) inside the divorce transaction. If the initiator
+  cannot pay, the divorce is **refused** with the exact required amount and
+  shortfall.
+* **Cheating («خیانت»)** is hidden — only the author ever sees the attempt's
+  result. When discovered the spouse is notified and consequences follow:
+  relationship points burn, a social fine leaves the wallet, reputation XP is
+  removed (through `LevelService` with full history), and divorce becomes a
+  real possibility — once the relationship is at its floor, the *betrayed*
+  spouse's «طلاق» makes the proven cheater pay the Mahriyeh (any shortfall
+  is recorded as an unpaid debt in the divorce record).
+* **Children**: a pregnancy creates a `children` row (father, mother, birth
+  date, child id), updates the family counters (marriage + both profiles) and
+  grants XP to both parents. The rows already carry the prepared structure for
+  the future child-growth / education / family-expense systems
+  (`growth_stage`, `education_level`, `expense_total`).
+* **Profile**: the 👤 profile screen shows marriage status, spouse name,
+  marriage year (Solar-Hijri) and the children count — read from the mirrored
+  `players` columns, kept in sync inside every family transaction.
+
+### Tables
+
+`marriages`, `marriage_proposals`, `divorce_records`, `relationship_events`,
+`children`, `family_histories` — created additively on existing databases,
+plus four new additive `players` columns (`marriage_status`,
+`spouse_player_id`, `married_at`, `children_count`).
+
 ## Admin Panel 🛡️
 
 The `/admin` command opens a fully **button-driven control console** for the
@@ -366,9 +473,11 @@ and old databases are upgraded additively (no rows dropped).
 
 ## What is intentionally NOT in this stage
 
-Education, skills, vehicles, marriage, businesses, loans, investments,
-markets, a trading exchange, crime, police, prisons and bankruptcy are **not
-implemented** — the architecture is simply prepared for them.
+Education, skills, vehicles, businesses, loans, investments, markets, a
+trading exchange, crime, police, prisons and bankruptcy are **not
+implemented** — the architecture is simply prepared for them. (Marriage and
+family life is implemented — see the section above; child growth, education
+and family expenses stay prepared for later stages.)
 
 ## Useful Commands
 

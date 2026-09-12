@@ -11,6 +11,7 @@ Startup order:
 from __future__ import annotations
 
 import logging
+import asyncio
 
 from telegram import Update
 from telegram.ext import Application, ApplicationBuilder
@@ -29,8 +30,18 @@ def build_application(
 ) -> Application:
     """Assemble the PTB application with its lifecycle hooks and handlers."""
 
+    async def market_loop() -> None:
+        while True:
+            try:
+                await services.market.update_if_due()
+            except Exception:
+                logger.exception("Market scheduler error")
+            await asyncio.sleep(3600)
+
     async def on_startup(application: Application) -> None:
         await database.create_all()
+        await services.market.ensure_assets()
+        application.bot_data['market_task'] = asyncio.create_task(market_loop())
         logger.info("Database initialized (missing tables created, data kept)")
         # Seed initial jobs for Job and Income System
         try:
@@ -60,6 +71,9 @@ def build_application(
             logger.warning("Could not seed the economy catalog: %s", exc)
 
     async def on_shutdown(application: Application) -> None:
+        task = application.bot_data.pop('market_task', None)
+        if task:
+            task.cancel()
         await database.dispose()
         logger.info("Database connections closed — bot shut down")
 
