@@ -13,7 +13,7 @@ from app.game.admin import runtime as admin_runtime
 
 BUTTON_PROFILE: str = "👤 پروفایل"
 BUTTON_STATUS: str = "📊 وضعیت"
-BUTTON_JOBS: str = "💼 شغل‌ها"
+BUTTON_JOBS: str = "💼 خر حمالی"
 BUTTON_HOUSING: str = "🏠 خانه"
 BUTTON_BACK_TO_MAIN: str = "🔙 منوی اصلی"
 
@@ -62,10 +62,10 @@ def build_back_to_main() -> InlineKeyboardMarkup:
 
 # --- Job keyboards ---------------------------------------------------------
 
-BUTTON_JOBS_LIST: str = "📋 لیست شغل‌ها"
-BUTTON_JOBS_MY_JOB: str = "👔 شغل من"
+BUTTON_JOBS_LIST: str = "📋 لیست کارها"
+BUTTON_JOBS_MY_JOB: str = "👔 کار من"
 BUTTON_JOBS_SETTLE: str = "💰 تسویه با صاحبکار"
-BUTTON_JOBS_LEAVE: str = "🚪 ترک شغل"
+BUTTON_JOBS_LEAVE: str = "🚪 ترک کار"
 BUTTON_JOBS_HISTORY: str = "📜 تاریخچه تسویه‌ها"
 
 
@@ -122,7 +122,7 @@ def build_jobs_list(jobs) -> InlineKeyboardMarkup:
     rows.append(
         [
             InlineKeyboardButton(
-                "🔙 بازگشت به منوی شغل‌ها", callback_data=callbacks.JOBS_MENU
+                "🔙 بازگشت به منوی خر حمالی", callback_data=callbacks.JOBS_MENU
             )
         ]
     )

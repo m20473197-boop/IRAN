@@ -41,6 +41,12 @@ _SQLITE_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     # overrides (per-mille scale factors, NULL = purely dynamic price).
     "players": [
         ("is_banned", "BOOLEAN NOT NULL DEFAULT 0"),
+        # The Marriage & Family system mirrors the marriage state onto the
+        # player row so the profile screen renders without extra queries.
+        ("marriage_status", "VARCHAR(16) NOT NULL DEFAULT 'single'"),
+        ("spouse_player_id", "BIGINT"),
+        ("married_at", "DATETIME"),
+        ("children_count", "INTEGER NOT NULL DEFAULT 0"),
     ],
     "houses": [
         ("price_override_per_mille", "INTEGER"),

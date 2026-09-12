@@ -13,17 +13,17 @@ from app.game.player.dto import (
 
 def jobs_menu_text() -> str:
     return (
-        "💼 منوی شغل‌ها:\n\n"
-        "از اینجا می‌تونی شغل انتخاب کنی، کار کنی و درآمد بگیری.\n"
-        "یه شغل انتخاب کن و هر وقت خواستی با صاحبکار تسویه کن 👇"
+        "💼 منوی خر حمالی:\n\n"
+        "از اینجا می‌تونی کار انتخاب کنی، کار کنی و درآمد بگیری.\n"
+        "یه کار انتخاب کن و هر وقت خواستی با صاحبکار تسویه کن 👇"
     )
 
 
 def jobs_list_text(jobs: list[JobData]) -> str:
     if not jobs:
-        return "هیچ شغل فعالی موجود نیست."
+        return "هیچ کار فعالی موجود نیست."
 
-    lines = ["📋 لیست شغل‌های موجود:\n"]
+    lines = ["📋 لیست کارهای موجود:\n"]
     for job in jobs:
         lines.append(
             f"• {job.name}\n"
@@ -32,7 +32,7 @@ def jobs_list_text(jobs: list[JobData]) -> str:
             f"  💰 حقوق ساعتی: {money(job.hourly_salary)}\n"
             f"  ⭐ لول مورد نیاز: {fa_int(job.required_level)}\n"
         )
-    lines.append("برای انتخاب شغل، روی دکمه مربوطه بزن 👇")
+    lines.append("برای انتخاب کار، روی دکمه مربوطه بزن 👇")
     return "\n".join(lines)
 
 
@@ -48,24 +48,24 @@ def _format_duration(minutes: int) -> str:
 
 def my_job_text(player_job: PlayerJobData | None) -> str:
     if player_job is None:
-        return "شغلی نداری.\nاز لیست شغل‌ها یکی رو انتخاب کن."
+        return "کاری نداری.\nاز لیست کارها یکی رو انتخاب کن."
 
     return (
-        f"👔 شغل فعلیت: {player_job.job_name}\n"
+        f"👔 کار فعلیت: {player_job.job_name}\n"
         f"📝 {player_job.job_description}\n"
         f"🏢 صاحبکار: {player_job.employer}\n"
         f"💰 حقوق ساعتی: {money(player_job.hourly_salary)}\n"
         f"📅 شروع کار: {player_job.started_at.strftime('%Y-%m-%d %H:%M')}\n"
         f"⏱️ مدت کار: {_format_duration(player_job.worked_minutes)}\n"
         f"🧮 درآمد فعلی (تسویه‌نشده): {money(player_job.accrued_salary)}\n"
-        f"💵 کل دریافتی از این شغل: {money(player_job.total_earnings)}\n\n"
+        f"💵 کل دریافتی از این کار: {money(player_job.total_earnings)}\n\n"
         "هر وقت خواستی با دکمه «تسویه با صاحبکار» حقوقت رو بگیر 👇"
     )
 
 
 def job_applied_success(job_name: str, employer: str, hourly_salary: int) -> str:
     return (
-        f"شغل {job_name} با موفقیت انتخاب شد.\n"
+        f"کار {job_name} با موفقیت انتخاب شد.\n"
         f"🏢 صاحبکار: {employer}\n"
         f"💰 حقوق ساعتی: {money(hourly_salary)}\n"
         "⏱️ از همین حالا ساعت کاری شروع شد!"
@@ -81,7 +81,7 @@ def settlement_text(result: SettlementResult) -> str:
     lines = [
         f"💼 تسویه حساب با {result.employer}",
         "━━━━━━━━━━━━━━━",
-        f"👔 شغل: {result.job_name}",
+        f"👔 کار: {result.job_name}",
         f"⏱️ مدت کار: {_format_duration(result.worked_minutes)}",
         f"💰 حقوق ساعتی: {money(result.hourly_salary)}",
         f"🧮 حقوق ناخالص: {money(result.gross_salary)}",
@@ -117,13 +117,13 @@ def job_settle_too_early() -> str:
 
 
 def job_no_job() -> str:
-    return "شغلی نداری.\nاز لیست شغل‌ها یکی رو انتخاب کن."
+    return "کاری نداری.\nاز لیست کارها یکی رو انتخاب کن."
 
 
 def job_leave_success(job_name: str, total_earnings: int) -> str:
     return (
-        f"شغل {job_name} ترک شد.\n"
-        f"💵 کل درآمد از این شغل: {money(total_earnings)}"
+        f"کار {job_name} ترک شد.\n"
+        f"💵 کل درآمد از این کار: {money(total_earnings)}"
     )
 
 
@@ -154,4 +154,4 @@ def salary_events_text(events: list[JobEventData]) -> str:
 
 
 def job_not_found() -> str:
-    return "شغل مورد نظر پیدا نشد."
+    return "این کار پیدا نشد."

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.job import Job
@@ -100,58 +100,50 @@ class JobRepository:
         return job
 
     async def ensure_initial_jobs(self) -> list[Job]:
-        """Seed initial jobs if they don't exist. Returns all active jobs."""
+        """Sync the canonical «خر حمالی» catalog into the ``jobs`` table.
+
+        Runs once per catalog version: the marker lives in ``bot_settings``
+        (``jobs_catalog_version``), so normal restarts never touch job rows
+        and admin edits of jobs survive. When the stored version differs
+        (first boot after a catalog update):
+
+        * every catalog job is created — or updated in place when a row with
+          that name already exists (this also backfills the hourly-salary /
+          employer columns on databases older than the time-based system),
+        * retired legacy jobs (``JOB_RETIRED_NAMES``) are **disabled** —
+          never deleted, because ``player_jobs``/history rows still point at
+          them.
+
+        Returns the active jobs.
+        """
         from app.core import constants
+        from app.database.repositories.bot_setting_repository import (
+            BotSettingRepository,
+        )
 
-        initial_jobs = [
-            {
-                "name": constants.JOB_WORKER_NAME,
-                "description": constants.JOB_WORKER_DESCRIPTION,
-                "salary": constants.JOB_WORKER_SALARY,
-                "hourly_salary": constants.JOB_WORKER_HOURLY_SALARY,
-                "employer": constants.JOB_WORKER_EMPLOYER,
-                "cooldown": constants.JOB_WORKER_COOLDOWN,
-                "required_level": constants.JOB_WORKER_REQUIRED_LEVEL,
-            },
-            {
-                "name": constants.JOB_EMPLOYEE_NAME,
-                "description": constants.JOB_EMPLOYEE_DESCRIPTION,
-                "salary": constants.JOB_EMPLOYEE_SALARY,
-                "hourly_salary": constants.JOB_EMPLOYEE_HOURLY_SALARY,
-                "employer": constants.JOB_EMPLOYEE_EMPLOYER,
-                "cooldown": constants.JOB_EMPLOYEE_COOLDOWN,
-                "required_level": constants.JOB_EMPLOYEE_REQUIRED_LEVEL,
-            },
-            {
-                "name": constants.JOB_SPECIALIST_NAME,
-                "description": constants.JOB_SPECIALIST_DESCRIPTION,
-                "salary": constants.JOB_SPECIALIST_SALARY,
-                "hourly_salary": constants.JOB_SPECIALIST_HOURLY_SALARY,
-                "employer": constants.JOB_SPECIALIST_EMPLOYER,
-                "cooldown": constants.JOB_SPECIALIST_COOLDOWN,
-                "required_level": constants.JOB_SPECIALIST_REQUIRED_LEVEL,
-            },
-        ]
+        settings = BotSettingRepository(self._session)
+        stored_version = await settings.get(constants.JOBS_CATALOG_SETTING_KEY)
+        if stored_version == constants.JOB_CATALOG_VERSION:
+            return await self.list_active()
 
-        existing = await self.list_all()
-        existing_by_name = {job.name: job for job in existing}
+        existing = {job.name: job for job in await self.list_all()}
 
-        for job_data in initial_jobs:
-            job = existing_by_name.get(job_data["name"])
+        for spec in constants.JOB_CATALOG:
+            job = existing.get(spec["name"])
             if job is None:
-                await self.create_job(**job_data)
+                await self.create_job(**spec)
                 continue
-            # Backfill fields added by the time-based salary update on jobs
-            # that already existed in an older database.
-            changed = False
-            if not job.employer and job_data.get("employer"):
-                job.employer = job_data["employer"]
-                changed = True
-            if job.hourly_salary == 0 and job_data.get("hourly_salary"):
-                job.hourly_salary = job_data["hourly_salary"]
-                changed = True
-            if changed:
-                self._session.add(job)
+            for field, value in spec.items():
+                setattr(job, field, value)
+            job.is_active = True
+            self._session.add(job)
 
+        for name in constants.JOB_RETIRED_NAMES:
+            retired = existing.get(name)
+            if retired is not None and retired.is_active:
+                retired.is_active = False
+                self._session.add(retired)
+
+        await settings.set(constants.JOBS_CATALOG_SETTING_KEY, constants.JOB_CATALOG_VERSION)
         await self._session.flush()
         return await self.list_active()

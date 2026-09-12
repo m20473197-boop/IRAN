@@ -428,4 +428,4 @@ def not_contract_party_text() -> str:
 
 
 def insufficient_funds_text() -> str:
-    return "پول کافی نداری! 💸\nبا 💼 شغل‌ها درآمد بساز و برگرد."
+    return "پول کافی نداری! 💸\nبا 💼 خر حمالی درآمد بساز و برگرد."

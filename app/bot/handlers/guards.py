@@ -8,8 +8,9 @@ instead of running — and the main menu hides its button as well.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import Awaitable, Callable, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -49,3 +50,17 @@ def requires_feature(
         return wrapper
 
     return decorator
+
+
+async def player_id_for(services, tg_id: int) -> int | None:
+    """Map a Telegram user id to the internal player id (None if unregistered).
+
+    Shared by the command-only systems (jobs, family) so no handler ever
+    touches the database layer directly beyond this tiny lookup.
+    """
+    from app.database.repositories.player_repository import PlayerRepository
+
+    async with services.players._session_factory() as session:  # type: ignore[attr-defined]
+        player = await PlayerRepository(session).get_by_telegram_user_id(tg_id)
+        return player.id if player is not None else None
+

@@ -281,13 +281,15 @@ async def test_event_creation_flow(services, tg_env):
 
 
 async def test_job_creation_flow(services, tg_env):
+    # A custom job outside the built-in «خر حمالی» catalog (the catalog job
+    # پیک موتوری exists already, so the admin flow must create a new name).
     _, context = await _tap(services, ADMIN_ID, "adm_in_ja")
-    for text in ["پیک موتوری", "رسوندن سفارش‌ها", "150000", "1", "اسنپ‌فود", "0"]:
+    for text in ["آشپزی", "پخت غذا", "150000", "1", "رستوران‌های زنجیره‌ای", "0"]:
         state, context = await _type(services, text, context.user_data)
     assert state == ConversationHandler.END
     assert "ساخته شد" in _last_reply(tg_env)
     jobs = await services.admin.list_jobs()
-    assert any(j.name == "پیک موتوری" for j in jobs)
+    assert any(j.name == "آشپزی" for j in jobs)
 
 
 # --- Economy screens -------------------------------------------------------------------------

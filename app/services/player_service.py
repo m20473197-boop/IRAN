@@ -27,6 +27,14 @@ class PlayerService:
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
+        # Optional read-only hook into the Marriage & Family system
+        # (installed by ServiceRegistry). ``None`` keeps the profile exactly
+        # as before — the family block simply renders "single".
+        self._family_provider = None
+
+    def set_family_provider(self, provider) -> None:
+        """Wire the family snapshot loader used by the profile screen."""
+        self._family_provider = provider
 
     # --- Use cases ---------------------------------------------------------
 
@@ -76,12 +84,21 @@ class PlayerService:
             )
 
     async def get_profile(self, telegram_user_id: int) -> ProfileData | None:
-        """Full profile data for the profile screen (``None`` if unregistered)."""
+        """Full profile data for the profile screen (``None`` if unregistered).
+
+        Includes the Marriage & Family block (marriage status, spouse,
+        marriage date, children) through the injected family provider.
+        """
         async with self._session_factory() as session:
             player = await PlayerRepository(session).get_by_telegram_user_id(
                 telegram_user_id
             )
-            return self._to_profile(player) if player is not None else None
+        if player is None:
+            return None
+        # Family snapshot on a separate short transaction (no nesting) —
+        # expire_on_commit=False keeps the player readable above.
+        family = await self._family_snapshot(telegram_user_id)
+        return self._to_profile(player, family)
 
     async def get_status(self, telegram_user_id: int) -> StatusData | None:
         """Basic game state for the status screen (``None`` if unregistered)."""
@@ -112,9 +129,28 @@ class PlayerService:
             profile=PlayerService._to_profile(player),
         )
 
+    async def _family_snapshot(self, telegram_user_id: int):
+        """Best-effort family snapshot (never breaks the profile screen)."""
+        if self._family_provider is None:
+            return None
+        try:
+            return await self._family_provider(telegram_user_id)
+        except Exception:  # noqa: BLE001 — the profile must always render
+            logger.warning("Family snapshot failed for %s", telegram_user_id, exc_info=True)
+            return None
+
     @staticmethod
-    def _to_profile(player: Player) -> ProfileData:
+    def _to_profile(player: Player, family=None) -> ProfileData:
         prog = get_level_progress(player.xp)
+        family_kwargs = {}
+        if family is not None:
+            family_kwargs = {
+                "marriage_status": family.marriage_status,
+                "spouse_player_id": family.spouse_player_id,
+                "spouse_display_name": family.spouse_display_name,
+                "married_at": family.married_at,
+                "children_count": family.children_count,
+            }
         return ProfileData(
             display_name=player.display_name,
             level=player.level,
@@ -124,6 +160,7 @@ class PlayerService:
             xp_needed_for_next=prog.xp_needed_for_next,
             progress_percent=prog.progress_percent,
             total_xp_for_next_level=prog.total_xp_for_next_level,
+            **family_kwargs,
         )
 
     @staticmethod

@@ -38,6 +38,47 @@ class PlayerRepository:
         statement = select(Player.money).where(Player.id == player_id)
         return (await self._session.execute(statement)).scalar_one_or_none()
 
+    # --- Family writes (used exclusively by FamilyService) ------------------
+
+    async def set_family_state(
+        self,
+        player_id: int,
+        *,
+        marriage_status: str,
+        spouse_player_id: int | None,
+        married_at: datetime | None,
+    ) -> bool:
+        """Write the denormalized marriage mirror columns of one player.
+
+        Returns ``False`` when the player does not exist (defensive — the
+        service validates both spouses inside its own transaction first).
+        """
+        statement = (
+            update(Player)
+            .where(Player.id == player_id)
+            .values(
+                marriage_status=marriage_status,
+                spouse_player_id=spouse_player_id,
+                married_at=married_at,
+            )
+        )
+        result = await self._session.execute(
+            statement, execution_options={"synchronize_session": False}
+        )
+        return bool(result.rowcount)
+
+    async def add_children(self, player_id: int, delta: int = 1) -> bool:
+        """Bump ``children_count`` (never below zero)."""
+        statement = (
+            update(Player)
+            .where(Player.id == player_id)
+            .values(children_count=func.max(Player.children_count + delta, 0))
+        )
+        result = await self._session.execute(
+            statement, execution_options={"synchronize_session": False}
+        )
+        return bool(result.rowcount)
+
     # --- Admin reads -------------------------------------------------------
 
     async def list_page(self, offset: int, limit: int) -> list[Player]:
